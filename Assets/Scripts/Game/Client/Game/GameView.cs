@@ -5,6 +5,8 @@
 // Desc: 球堆玩法的主界面，全部用 uGUI 代码搭
 //---------------------------------------------------------------------------------------
 
+using System.Collections;
+using System.Collections.Generic;
 using SeeWho.Common.Balls;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -72,6 +74,9 @@ namespace SeeWho.Client
 
         private float mToastTimer;
         private float mCellSize = 60f;
+        private GameObject[,] mBallObjects = new GameObject[0, 0];
+        private List<GameObject>[] mBusCards = new List<GameObject>[0];
+        private bool mAnimating;
 
         /// <summary>
         /// 加载资源并搭界面
@@ -342,6 +347,8 @@ namespace SeeWho.Client
             UiKit.Place(sand.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 Vector2.zero, new Vector2(width + 16f, height + 16f));
 
+            mBallObjects = new GameObject[mLevel.Width, mLevel.Height];
+
             for (var y = 0; y < mLevel.Height; y++)
             {
                 for (var x = 0; x < mLevel.Width; x++)
@@ -364,6 +371,7 @@ namespace SeeWho.Client
                     UiKit.Place(ball.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                         new Vector2(posX, posY), new Vector2(mCellSize * 0.94f, mCellSize * 1.12f));
                     ball.preserveAspect = true;
+                    mBallObjects[x, y] = ball.gameObject;
                 }
             }
         }
@@ -377,6 +385,7 @@ namespace SeeWho.Client
 
             var columns = mLevel.Columns;
             var spacing = 1060f / columns;
+            mBusCards = new List<GameObject>[columns];
 
             // 车位区的浅蓝底
             var floor = UiKit.CreateImage(mBusRoot, "Floor", mRoundSprite, WaterColor);
@@ -387,6 +396,7 @@ namespace SeeWho.Client
             {
                 var centerX = (column - (columns - 1) * 0.5f) * spacing;
                 var stack = mGame.Stacks[column];
+                mBusCards[column] = new List<GameObject>(stack.Count);
 
                 for (var i = 0; i < stack.Count; i++)
                 {
@@ -399,6 +409,7 @@ namespace SeeWho.Client
                         WithAlpha(color, isFront ? 1f : 0.55f));
                     UiKit.Place(bus.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                         new Vector2(centerX, i * 128f + 8f), new Vector2(spacing - 26f, 114f));
+                    mBusCards[column].Add(bus.gameObject);
 
                     if (isFront)
                     {
@@ -430,19 +441,162 @@ namespace SeeWho.Client
         /// </summary>
         private void OnBusClicked(int column)
         {
-            if (mGame == null || mGame.IsWin)
+            Dispatch(column, false);
+        }
+
+        /// <summary>
+        /// 发车：先让模型走一步，再播动画，动画结束再整体刷新
+        /// </summary>
+        /// <param name="column">列</param>
+        /// <param name="fromHint">是不是提示按钮触发的</param>
+        private void Dispatch(int column, bool fromHint)
+        {
+            if (mGame == null || mGame.IsWin || mAnimating)
             {
                 return;
             }
 
+            var oldCells = (int[])mGame.Cells.Clone();
             var absorbed = mGame.Dispatch(column);
             if (absorbed < 0)
             {
                 return;
             }
 
-            ShowToast(absorbed == 0 ? "这辆车没吸到球" : "吸走 " + absorbed + " 个");
+            ShowToast(fromHint
+                ? "提示：第 " + (column + 1) + " 列，吸 " + absorbed + " 个"
+                : absorbed == 0 ? "这辆车没吸到球" : "吸走 " + absorbed + " 个");
+
+            mAnimating = true;
+            StartCoroutine(AnimateDispatch(column, oldCells, absorbed));
+        }
+
+        /// <summary>
+        /// 发车动画：车滑走淡出，吸掉的球缩小消失，剩下的球往下落
+        /// </summary>
+        /// <param name="column">发的哪一列</param>
+        /// <param name="oldCells">发车前的盘面</param>
+        /// <param name="absorbed">吸走几个</param>
+        private IEnumerator AnimateDispatch(int column, int[] oldCells, int absorbed)
+        {
+            const float duration = 0.3f;
+
+            var moves = new List<RectTransform>();
+            var from = new List<Vector2>();
+            var to = new List<Vector2>();
+            var removed = new List<GameObject>();
+
+            var width = mLevel.Width;
+            var height = mLevel.Height;
+
+            for (var x = 0; x < width; x++)
+            {
+                var oldYs = new List<int>();
+                for (var y = 0; y < height; y++)
+                {
+                    if (oldCells[mLevel.Index(x, y)] >= 0)
+                    {
+                        oldYs.Add(y);
+                    }
+                }
+
+                var newYs = new List<int>();
+                for (var y = 0; y < height; y++)
+                {
+                    if (mGame.Cells[mLevel.Index(x, y)] >= 0)
+                    {
+                        newYs.Add(y);
+                    }
+                }
+
+                var i = 0;
+                var j = 0;
+                while (i < oldYs.Count)
+                {
+                    var oldY = oldYs[i];
+                    var kept = false;
+
+                    if (j < newYs.Count && mGame.Cells[mLevel.Index(x, newYs[j])] == oldCells[mLevel.Index(x, oldY)])
+                    {
+                        var obj = mBallObjects[x, oldY];
+                        if (obj != null)
+                        {
+                            var rect = (RectTransform)obj.transform;
+                            moves.Add(rect);
+                            from.Add(BallPosition(x, oldY));
+                            to.Add(BallPosition(x, newYs[j]));
+                        }
+
+                        kept = true;
+                        j++;
+                    }
+
+                    if (!kept)
+                    {
+                        removed.Add(mBallObjects[x, oldY]);
+                    }
+
+                    i++;
+                }
+            }
+
+            var busCard = column < mBusCards.Length && mBusCards[column].Count > 0 ? mBusCards[column][0] : null;
+            var busRect = busCard != null ? (RectTransform)busCard.transform : null;
+            var busFrom = busRect != null ? busRect.anchoredPosition : Vector2.zero;
+            var busImage = busCard != null ? busCard.GetComponent<Image>() : null;
+            var busColor = busImage != null ? busImage.color : Color.white;
+
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var ease = t * t * (3f - 2f * t);
+
+                for (var k = 0; k < moves.Count; k++)
+                {
+                    moves[k].anchoredPosition = Vector2.Lerp(from[k], to[k], ease);
+                }
+
+                for (var k = 0; k < removed.Count; k++)
+                {
+                    if (removed[k] == null)
+                    {
+                        continue;
+                    }
+
+                    var rect = (RectTransform)removed[k].transform;
+                    var scale = 1f - ease;
+                    rect.localScale = new Vector3(scale, scale, 1f);
+                }
+
+                if (busRect != null)
+                {
+                    busRect.anchoredPosition = busFrom + new Vector2(0f, -70f * ease);
+                    if (busImage != null)
+                    {
+                        busImage.color = WithAlpha(busColor, Mathf.Lerp(busColor.a, 0f, ease));
+                    }
+                }
+
+                yield return null;
+            }
+
+            mAnimating = false;
             Refresh();
+        }
+
+        /// <summary>
+        /// 某个格子的局部坐标
+        /// </summary>
+        /// <param name="x">列</param>
+        /// <param name="y">行</param>
+        /// <returns>坐标</returns>
+        private Vector2 BallPosition(int x, int y)
+        {
+            return new Vector2(
+                (x - (mLevel.Width - 1) * 0.5f) * mCellSize,
+                (y - (mLevel.Height - 1) * 0.5f) * mCellSize);
         }
 
         /// <summary>
@@ -450,7 +604,7 @@ namespace SeeWho.Client
         /// </summary>
         private void OnHintClicked()
         {
-            if (mGame == null || mGame.IsWin)
+            if (mGame == null || mGame.IsWin || mAnimating)
             {
                 return;
             }
@@ -462,9 +616,7 @@ namespace SeeWho.Client
                 return;
             }
 
-            var absorbed = mGame.Dispatch(best);
-            ShowToast("提示：第 " + (best + 1) + " 列，吸 " + absorbed + " 个");
-            Refresh();
+            Dispatch(best, true);
         }
 
         /// <summary>
@@ -472,6 +624,11 @@ namespace SeeWho.Client
         /// </summary>
         private void OnRestartClicked()
         {
+            if (mAnimating)
+            {
+                return;
+            }
+
             mGame = BallGame.Create(mLevel);
             Refresh();
         }
