@@ -387,10 +387,15 @@ namespace SeeWho.Client
             var spacing = 1060f / columns;
             mBusCards = new List<GameObject>[columns];
 
-            // 车位区的浅蓝底
-            var floor = UiKit.CreateImage(mBusRoot, "Floor", mRoundSprite, WaterColor);
+            // 车位区铺一块浅蓝底，边框照缓存里的道路图块
+            var floor = UiKit.CreateImage(mBusRoot, "Floor", mRoundSprite, new Color(0.58f, 0.83f, 0.96f, 1f));
             UiKit.Place(floor.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 66f), new Vector2(1040f, 400f));
+                new Vector2(0f, 18f), new Vector2(1040f, 430f));
+
+            var floorInner = UiKit.CreateImage(floor.transform, "Inner", mRoundSprite,
+                new Color(0.84f, 0.95f, 1f, 1f));
+            UiKit.Place(floorInner.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(1020f, 410f));
 
             for (var column = 0; column < columns; column++)
             {
@@ -405,8 +410,17 @@ namespace SeeWho.Client
                     var index = column;
 
                     var color = Palette[card.Color % Palette.Length];
+
+                    if (isFront)
+                    {
+                        var ring = UiKit.CreateImage(mBusRoot, "Ring" + column, mRoundSprite,
+                            new Color(1f, 1f, 1f, 0.95f));
+                        UiKit.Place(ring.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                            new Vector2(centerX, i * 128f + 4f), new Vector2(spacing - 12f, 126f));
+                    }
+
                     var bus = UiKit.CreateImage(mBusRoot, "Bus" + column + "_" + i, mRoundSprite,
-                        WithAlpha(color, isFront ? 1f : 0.55f));
+                        WithAlpha(color, isFront ? 1f : 0.85f));
                     UiKit.Place(bus.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                         new Vector2(centerX, i * 128f + 8f), new Vector2(spacing - 26f, 114f));
                     mBusCards[column].Add(bus.gameObject);
