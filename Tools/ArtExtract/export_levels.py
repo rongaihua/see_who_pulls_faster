@@ -20,7 +20,7 @@ import sys
 from collections import deque
 
 # 球盘宽度，高度按球数算
-BOARD_WIDTH = 20
+BOARD_WIDTH = 24
 # 一个色块的大小范围
 MIN_BLOB = 6
 MAX_BLOB = 24
@@ -104,7 +104,7 @@ def parse_bus(entry):
 
 def board_size(count):
     """按球数挑一个大致接近方形的球盘，太小或太扁都不好看。"""
-    width = int(round((count * 1.6) ** 0.5))
+    width = int(round((count * 1.5) ** 0.5))
     width = max(5, min(BOARD_WIDTH, width))
     height = max(4, (count + width - 1) // width)
     return width, height

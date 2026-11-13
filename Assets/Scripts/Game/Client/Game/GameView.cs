@@ -82,6 +82,7 @@ namespace SeeWho.Client
 
         private float mToastTimer;
         private float mCellSize = 60f;
+        private Vector2 mBoardOrigin;
         private GameObject[,] mBallObjects = new GameObject[0, 0];
         private List<GameObject>[] mBusCards = new List<GameObject>[0];
         private readonly List<RectTransform> mColumnHits = new List<RectTransform>();
@@ -305,21 +306,23 @@ namespace SeeWho.Client
 
             mBoardRoot = UiKit.CreateNode(root, "Board");
             UiKit.Place(mBoardRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -250f), new Vector2(1040f, 760f));
+                new Vector2(0f, -260f), new Vector2(1040f, 780f));
+
+            BuildRoad(root);
 
             mBusRoot = UiKit.CreateNode(root, "Buses");
             UiKit.Place(mBusRoot, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 430f), new Vector2(1060f, 420f));
+                new Vector2(0f, 250f), new Vector2(1060f, 420f));
 
             var hintButton = UiKit.CreateButton(root, "Hint", "提示", 40, new Color(0.28f, 0.66f, 0.36f, 1f),
                 mRoundSprite, TextColor, mFont, OnHintClicked);
             UiKit.Place(hintButton.transform as RectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(-160f, 250f), new Vector2(240f, 96f));
+                new Vector2(-160f, 95f), new Vector2(240f, 96f));
 
             var restartButton = UiKit.CreateButton(root, "Restart", "重开", 40, new Color(0.55f, 0.40f, 0.22f, 1f),
                 mRoundSprite, TextColor, mFont, OnRestartClicked);
             UiKit.Place(restartButton.transform as RectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(160f, 250f), new Vector2(240f, 96f));
+                new Vector2(160f, 95f), new Vector2(240f, 96f));
 
             mToastText = UiKit.CreateText(root, "Toast", string.Empty, 38, new Color(1f, 0.95f, 0.6f, 0f),
                 TextAnchor.MiddleCenter, mFont);
@@ -328,6 +331,40 @@ namespace SeeWho.Client
 
             BuildOverlay(root);
             BuildHome(root);
+        }
+
+        /// <summary>
+        /// 画固定道路：竖向跑道 + 底部横向车道，车就沿着它跑
+        /// </summary>
+        private void BuildRoad(RectTransform root)
+        {
+            var roadFill = new Color(0.74f, 0.90f, 0.98f, 1f);
+            var roadEdge = new Color(0.40f, 0.72f, 0.88f, 1f);
+
+            var laneEdge = UiKit.CreateImage(root, "LaneEdge", mRoundSprite, roadEdge);
+            UiKit.Place(laneEdge.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 670f), new Vector2(1060f, 90f));
+
+            var lane = UiKit.CreateImage(laneEdge.transform, "LaneFill", mRoundSprite, roadFill);
+            UiKit.Place(lane.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(1042f, 78f));
+
+            var roadEdgeImage = UiKit.CreateImage(root, "RoadEdge", mRoundSprite, roadEdge);
+            UiKit.Place(roadEdgeImage.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 760f), new Vector2(236f, 300f));
+
+            var road = UiKit.CreateImage(roadEdgeImage.transform, "RoadFill", mRoundSprite, roadFill);
+            UiKit.Place(road.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(218f, 282f));
+
+            // 路面虚线，让它看起来像条路
+            for (var i = 0; i < 3; i++)
+            {
+                var dash = UiKit.CreateImage(road.transform, "Dash" + i, mSmallRoundSprite,
+                    new Color(1f, 1f, 1f, 0.9f));
+                UiKit.Place(dash.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(0f, -70f + i * 70f), new Vector2(24f, 34f));
+            }
         }
 
         /// <summary>
@@ -472,17 +509,22 @@ namespace SeeWho.Client
         {
             UiKit.Clear(mBoardRoot);
 
-            mCellSize = Mathf.Min(74f, 1000f / mLevel.Width, 720f / mLevel.Height);
+            mCellSize = Mathf.Min(74f, 1000f / mLevel.Width, 600f / mLevel.Height);
             var width = mCellSize * mLevel.Width;
             var height = mCellSize * mLevel.Height;
 
+            // 球坑贴着板子的顶边放，下面留给道路
+            var baseY = (mBoardRoot.rect.height - (height + 32f)) * 0.5f;
+            var origin = new Vector2(0f, baseY);
+            mBoardOrigin = origin;
+
             var frame = UiKit.CreateImage(mBoardRoot, "PitFrame", mRoundSprite, GrassColor);
             UiKit.Place(frame.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(width + 32f, height + 32f));
+                origin, new Vector2(width + 32f, height + 32f));
 
             var sand = UiKit.CreateImage(mBoardRoot, "PitSand", mRoundSprite, SandColor);
             UiKit.Place(sand.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(width + 16f, height + 16f));
+                origin, new Vector2(width + 16f, height + 16f));
 
             mBallObjects = new GameObject[mLevel.Width, mLevel.Height];
 
@@ -506,7 +548,7 @@ namespace SeeWho.Client
                             Palette[color % Palette.Length]);
 
                     UiKit.Place(ball.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                        new Vector2(posX, posY), new Vector2(mCellSize * 0.94f, mCellSize * 1.12f));
+                        origin + new Vector2(posX, posY), new Vector2(mCellSize * 0.94f, mCellSize * 1.12f));
                     ball.preserveAspect = true;
                     mBallObjects[x, y] = ball.gameObject;
                 }
@@ -692,25 +734,13 @@ namespace SeeWho.Client
             var busCard = column < mBusCards.Length && mBusCards[column].Count > 0 ? mBusCards[column][0] : null;
             var busRect = busCard != null ? (RectTransform)busCard.transform : null;
             var busFrom = busRect != null ? busRect.anchoredPosition : Vector2.zero;
-            var busImage = busCard != null ? busCard.GetComponent<Image>() : null;
-            var busColor = busImage != null ? busImage.color : Color.white;
 
-            // 车先往前挪一点，凑近球坑
-            var busUp = busFrom + new Vector2(0f, 76f);
-            var elapsed = 0f;
-            const float pullTime = 0.14f;
+            // 先开到底部车道，再顺着路往上
+            var lanePoint = new Vector2(0f, 465f);
+            var topPoint = new Vector2(0f, 780f);
 
-            while (elapsed < pullTime)
-            {
-                elapsed += Time.deltaTime;
-                var ease = Mathf.Clamp01(elapsed / pullTime);
-                if (busRect != null)
-                {
-                    busRect.anchoredPosition = Vector2.Lerp(busFrom, busUp, ease);
-                }
-
-                yield return null;
-            }
+            yield return MoveBus(busRect, busFrom, lanePoint, 0.22f);
+            yield return MoveBus(busRect, lanePoint, topPoint, 0.3f);
 
             // 被吸走的人飞进车里
             var fliers = new List<RectTransform>();
@@ -769,33 +799,50 @@ namespace SeeWho.Client
                 yield return null;
             }
 
-            // 车开出屏幕
-            const float exitTime = 0.22f;
-            var dir = column < mLevel.Columns * 0.5f ? -1f : 1f;
-            var exit = busUp + new Vector2(dir * 760f, 30f);
-            elapsed = 0f;
+            // 开回车道，再沿车道驶出
+            yield return MoveBus(busRect, topPoint, lanePoint, 0.2f);
+            yield return MoveBus(busRect, lanePoint, lanePoint + new Vector2(640f, 0f), 0.3f, true);
 
-            while (elapsed < exitTime)
+            mAnimating = false;
+            Refresh();
+        }
+
+        /// <summary>
+        /// 让一辆车从 from 开到 to
+        /// </summary>
+        /// <param name="rect">车的矩形</param>
+        /// <param name="from">起点</param>
+        /// <param name="to">终点</param>
+        /// <param name="duration">时长</param>
+        /// <param name="fade">是否顺便淡出</param>
+        /// <returns>协程</returns>
+        private static IEnumerator MoveBus(RectTransform rect, Vector2 from, Vector2 to, float duration, bool fade = false)
+        {
+            if (rect == null)
+            {
+                yield break;
+            }
+
+            var image = rect.GetComponent<Image>();
+            var color = image != null ? image.color : Color.white;
+            var elapsed = 0f;
+
+            while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                var t = Mathf.Clamp01(elapsed / exitTime);
-                var ease = t * t;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var ease = t * t * (3f - 2f * t);
 
-                if (busRect != null)
+                rect.anchoredPosition = Vector2.Lerp(from, to, ease);
+                if (fade && image != null)
                 {
-                    busRect.anchoredPosition = Vector2.Lerp(busUp, exit, ease);
-                }
-
-                if (busImage != null)
-                {
-                    busImage.color = WithAlpha(busColor, 1f - ease);
+                    image.color = WithAlpha(color, 1f - ease);
                 }
 
                 yield return null;
             }
 
-            mAnimating = false;
-            Refresh();
+            rect.anchoredPosition = to;
         }
 
         /// <summary>
@@ -822,7 +869,7 @@ namespace SeeWho.Client
         /// <returns>坐标</returns>
         private Vector2 BallPosition(int x, int y)
         {
-            return new Vector2(
+            return mBoardOrigin + new Vector2(
                 (x - (mLevel.Width - 1) * 0.5f) * mCellSize,
                 (y - (mLevel.Height - 1) * 0.5f) * mCellSize);
         }
