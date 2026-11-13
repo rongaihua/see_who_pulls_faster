@@ -30,12 +30,15 @@ Assets/
       Client/            客户端逻辑（seewho_client）
         Entry/           入口 GameEntry
       Common/            纯 C# 公共逻辑，不依赖 Unity（seewho_common）
+        Level/           关卡核心：数据、规则、求解器、生成器
   Res/                   美术、音频等资源
 Packages/
   manifest.json          Unity 包依赖
   my-game-libra/         libra 子模块，嵌入式包
 ProjectSettings/
   ProjectVersion.txt     Unity 版本
+Tools/
+  LevelLab/              关卡核心的离线自检程序（dotnet，不依赖 Unity）
 ```
 
 ## libra 的引用方式
@@ -63,7 +66,40 @@ ProjectSettings/
 Unity.exe -batchmode -quit -projectPath <工程路径> -executeMethod SeeWho.Editor.EntrySceneBuilder.Build
 ```
 
+## 关卡核心
+
+纯 C#，放在 `Assets/Scripts/Game/Common/Level`，不引用 UnityEngine，可以脱离 Unity 跑。
+
+规则（`GameRules`）：
+
+1. 队伍先进先出，只有队头能动；
+2. 队头颜色对得上某个车位上还有空座的车，就能上车；
+3. 上不了车就去候车区，候车区满还上不了车就卡死；
+4. 候车区里的人随时可以补位上车；
+5. 车坐满就发车，下一辆车立刻进站。
+
+| 类 | 职责 |
+|---|---|
+| `LevelDefinition` | 关卡的静态数据：颜色数、座位数、车位、候车区、队伍、车队 |
+| `GameState` | 局面：队头下标、候车区、车位上的车、车队进度 |
+| `Move` | 一步操作：队头上车 / 队头候车 / 候车区上车 |
+| `GameRules` | 合法操作、执行操作、胜负判定 |
+| `LevelSolver` | 广度优先求最少步数的解，无解也能判定 |
+| `LevelGenerator` | 随机造关卡 + 求解验证，按步数和候车压力卡难度 |
+| `LevelStats` | 难度指标：步数、候车次数、候车区峰值 |
+
+关卡生成时保证每种颜色的人数是座位数的整数倍，否则最后一辆车永远坐不满、会把车位一直占住。
+
+### 离线自检
+
+```bash
+cd Tools/LevelLab
+dotnet run -c Release
+```
+
+会跑规则/求解/生成的断言，再打印三档难度的样例关卡；全过时退出码为 0。
+
 ## 下一步
 
-- `GameEntry.Main` 目前还没接玩法模块，关卡数据、车辆、车位的逻辑后面往 `Assets/Scripts/Game/Client` 里加
-- 纯逻辑（关卡求解、规则判定）放 `Common`，方便脱离 Unity 单测
+- `GameEntry` 还没接玩法模块，下一步把 `LevelDefinition` 喂给客户端，做队伍、车位、候车区的表现
+- 关卡数据先由 `LevelGenerator` 生成成 JSON，编辑器里再手调

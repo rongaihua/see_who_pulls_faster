@@ -239,3 +239,6 @@ x86/
 !/Packages/my-game-libra/**
 !/Packages/manifest.json
 !/Packages/packages-lock.json
+
+# Tools 下的工程文件不是 Unity 生成的，要提交
+!Tools/**/*.csproj
