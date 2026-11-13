@@ -61,6 +61,29 @@ Tools/
 
 子模块当前固定在 `4391b44`（添加音乐管理器），和 PixelCar 用的是同一个提交。
 
+## 美术资源（从缓存拆的）
+
+资源来自微信小游戏的缓存快照（`...\local\wx641f825d5dce9ea9\usr\gamecaches`），拆图脚本在 `Tools/ArtExtract/extract_art.py`：
+
+```bash
+python Tools/ArtExtract/extract_art.py <缓存 gamecaches 目录> Assets
+```
+
+拆出来的东西：
+
+| 文件 | 来源 | 说明 |
+|---|---|---|
+| `Resources/SeeWho/Art/bg_level.png` | `prefabs/179444969224831.png` | 主背景：蓝天、草地、彩旗、木牌。**缓存里扩展名是 .png，内容其实是 webp**，脚本会转成真 PNG |
+| `Resources/SeeWho/Art/People/person_00..17.png` | `prefabs/179428657819468.png` | 小人精灵图（8 列 × 2 行，列宽 48）切出来的 18 种颜色 |
+
+切图要点：
+
+- 精灵图里人物是紧密排列的，直接按格子切会带进隔壁的像素，所以每格用**连通域取最大一块**再裁包围盒；
+- 颜色编号到精灵编号做了映射（`GameView.SpriteMap`），只挑鲜艳的 8 个：橙、黄、浅绿、青、蓝、粉、红、淡紫；
+- 木牌上的关卡标题、沙地 + 草绿边框的球坑、四列车位，都是按原作的配色用 uGUI 画的。
+
+> 这些素材版权属于原作者，只用于本地原型对照，别打包发布。
+
 ## 入口场景
 
 打开工程后点菜单 **SeeWho/生成入口场景**，会生成 `Assets/Scenes/entry.unity` 并加进 Build Settings。场景里只有一个挂着 `GameEntry` 的 Entry 物体，`GameEntry` 负责初始化 libra 的 `MyGame.G`、准备相机，然后起一局。

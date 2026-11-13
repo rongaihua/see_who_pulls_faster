@@ -15,33 +15,43 @@ namespace SeeWho.Client
     /// <summary>
     /// 游戏主界面：上面是堆满彩球的坑，下面是四列等着发车的巴士。
     /// 点每列最前面那辆车，它会把同色的球吸走，上面的球往下落。
+    /// 美术取自小游戏缓存：背景、小人精灵、配色都按原作来。
     /// </summary>
     public sealed class GameView : MonoBehaviour
     {
         /// <summary>
-        /// 球的颜色表
+        /// 小人颜色表，取的是缓存精灵里的鲜艳色
         /// </summary>
         private static readonly Color[] Palette =
         {
-            new Color(0.89f, 0.34f, 0.18f),
-            new Color(0.18f, 0.53f, 0.67f),
-            new Color(0.23f, 0.70f, 0.45f),
-            new Color(0.95f, 0.76f, 0.31f),
-            new Color(0.61f, 0.36f, 0.90f),
-            new Color(0.95f, 0.36f, 0.71f),
-            new Color(0.35f, 0.42f, 0.85f),
-            new Color(0.90f, 0.55f, 0.30f),
+            new Color(0.967f, 0.393f, 0.019f),
+            new Color(0.960f, 0.764f, 0.013f),
+            new Color(0.398f, 0.791f, 0.197f),
+            new Color(0.042f, 0.720f, 0.872f),
+            new Color(0.011f, 0.427f, 0.947f),
+            new Color(0.925f, 0.269f, 0.855f),
+            new Color(0.899f, 0.208f, 0.246f),
+            new Color(0.624f, 0.615f, 0.877f),
         };
 
+        /// <summary>
+        /// 颜色编号到精灵编号的映射，挑的都是鲜艳的那几个
+        /// </summary>
+        private static readonly int[] SpriteMap = { 10, 17, 6, 4, 1, 11, 14, 9 };
+
         private static readonly Color TextColor = new Color(0.96f, 0.97f, 0.99f);
-        private static readonly Color WeakText = new Color(0.96f, 0.97f, 0.99f, 0.55f);
-        private static readonly Color PanelColor = new Color(1f, 1f, 1f, 0.06f);
+        private static readonly Color WeakText = new Color(0.96f, 0.97f, 0.99f, 0.7f);
+        private static readonly Color SandColor = new Color(0.96f, 0.84f, 0.62f);
+        private static readonly Color GrassColor = new Color(0.42f, 0.74f, 0.25f);
+        private static readonly Color WaterColor = new Color(0.62f, 0.83f, 0.92f, 0.5f);
         private static readonly Color ButtonColor = new Color(0.24f, 0.70f, 0.45f);
-        private static readonly Color ButtonGray = new Color(1f, 1f, 1f, 0.14f);
+        private static readonly Color ButtonGray = new Color(0.25f, 0.28f, 0.34f, 0.9f);
 
         private Font mFont;
+        private Sprite[] mPeople = new Sprite[0];
         private Sprite mCircleSprite;
         private Sprite mRoundSprite;
+        private Sprite mSmallRoundSprite;
         private Sprite mBgSprite;
 
         private BallLevel mLevel;
@@ -53,7 +63,6 @@ namespace SeeWho.Client
         private Text mTitleText;
         private Text mRemainText;
         private Text mToastText;
-        private Text mTipText;
 
         private GameObject mOverlay;
         private Text mOverlayTitle;
@@ -134,7 +143,14 @@ namespace SeeWho.Client
 
             mCircleSprite = LoadSprite("SeeWho/UI/circle");
             mRoundSprite = UiKit.CreateRoundedSprite(96, 24);
-            mBgSprite = LoadSprite("SeeWho/UI/sky_gradient");
+            mSmallRoundSprite = UiKit.CreateRoundedSprite(32, 9);
+            mBgSprite = LoadSprite("SeeWho/Art/bg_level");
+
+            mPeople = new Sprite[18];
+            for (var i = 0; i < mPeople.Length; i++)
+            {
+                mPeople[i] = LoadSprite("SeeWho/Art/People/person_" + i.ToString("00"));
+            }
         }
 
         /// <summary>
@@ -180,41 +196,42 @@ namespace SeeWho.Client
 
             var root = (RectTransform)canvasGo.transform;
 
-            var background = UiKit.CreateImage(root, "Background", mBgSprite, new Color(0.10f, 0.12f, 0.18f));
+            var background = UiKit.CreateImage(root, "Background", mBgSprite, Color.white);
             UiKit.Stretch(background.rectTransform);
+            if (mBgSprite == null)
+            {
+                background.color = new Color(0.55f, 0.78f, 0.94f);
+            }
 
-            mTitleText = UiKit.CreateText(root, "Title", "第 1 关", 50, TextColor, TextAnchor.MiddleLeft, mFont);
-            UiKit.Place(mTitleText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(44f, -36f), new Vector2(460f, 86f));
+            // 标题压在背景的蓝色木牌上
+            mTitleText = UiKit.CreateText(root, "Title", "第 1 关", 52, TextColor, TextAnchor.MiddleCenter, mFont);
+            UiKit.Place(mTitleText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -105f), new Vector2(520f, 90f));
 
-            mRemainText = UiKit.CreateText(root, "Remain", "剩余 0", 38, WeakText, TextAnchor.MiddleRight, mFont);
-            UiKit.Place(mRemainText.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-44f, -36f), new Vector2(400f, 86f));
+            mRemainText = UiKit.CreateText(root, "Remain", "剩余 0", 34, new Color(0.28f, 0.22f, 0.12f, 0.85f),
+                TextAnchor.MiddleCenter, mFont);
+            UiKit.Place(mRemainText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -200f), new Vector2(600f, 60f));
 
             mBoardRoot = UiKit.CreateNode(root, "Board");
             UiKit.Place(mBoardRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -190f), new Vector2(1040f, 780f));
+                new Vector2(0f, -250f), new Vector2(1040f, 760f));
 
             mBusRoot = UiKit.CreateNode(root, "Buses");
             UiKit.Place(mBusRoot, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(0f, 430f), new Vector2(1060f, 420f));
 
-            mTipText = UiKit.CreateText(root, "Tip", "点每列最前面的车，把同色的球吸走", 30,
-                new Color(0.96f, 0.97f, 0.99f, 0.38f), TextAnchor.MiddleCenter, mFont);
-            UiKit.Place(mTipText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 370f), new Vector2(1000f, 60f));
-
-            var hintButton = UiKit.CreateButton(root, "Hint", "提示", 40, ButtonGray, mRoundSprite, TextColor, mFont,
-                OnHintClicked);
+            var hintButton = UiKit.CreateButton(root, "Hint", "提示", 40, new Color(0.28f, 0.66f, 0.36f, 1f),
+                mRoundSprite, TextColor, mFont, OnHintClicked);
             UiKit.Place(hintButton.transform as RectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(-160f, 250f), new Vector2(240f, 96f));
 
-            var restartButton = UiKit.CreateButton(root, "Restart", "重开", 40, ButtonGray, mRoundSprite, TextColor,
-                mFont, OnRestartClicked);
+            var restartButton = UiKit.CreateButton(root, "Restart", "重开", 40, new Color(0.55f, 0.40f, 0.22f, 1f),
+                mRoundSprite, TextColor, mFont, OnRestartClicked);
             UiKit.Place(restartButton.transform as RectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(160f, 250f), new Vector2(240f, 96f));
 
-            mToastText = UiKit.CreateText(root, "Toast", string.Empty, 38, new Color(1f, 0.85f, 0.4f, 0f),
+            mToastText = UiKit.CreateText(root, "Toast", string.Empty, 38, new Color(1f, 0.95f, 0.6f, 0f),
                 TextAnchor.MiddleCenter, mFont);
             UiKit.Place(mToastText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(0f, 60f), new Vector2(900f, 80f));
@@ -231,21 +248,26 @@ namespace SeeWho.Client
             UiKit.Stretch(overlay);
             mOverlay = overlay.gameObject;
 
-            var dim = UiKit.CreateImage(overlay, "Dim", null, new Color(0f, 0f, 0f, 0.72f));
+            var dim = UiKit.CreateImage(overlay, "Dim", null, new Color(0f, 0f, 0f, 0.55f));
             UiKit.Stretch(dim.rectTransform);
             dim.raycastTarget = true;
 
-            var panel = UiKit.CreateImage(overlay, "Panel", mRoundSprite, new Color(0.15f, 0.16f, 0.22f, 0.98f));
+            var panel = UiKit.CreateImage(overlay, "Panel", mRoundSprite, SandColor);
             UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 Vector2.zero, new Vector2(780f, 600f));
 
-            mOverlayTitle = UiKit.CreateText(panel.transform, "Title", "通关", 64, TextColor, TextAnchor.MiddleCenter,
-                mFont);
+            var frame = UiKit.CreateImage(panel.transform, "Frame", mRoundSprite, GrassColor);
+            UiKit.Place(frame.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(796f, 616f));
+            frame.transform.SetAsFirstSibling();
+
+            mOverlayTitle = UiKit.CreateText(panel.transform, "Title", "通关", 64,
+                new Color(0.35f, 0.22f, 0.10f, 1f), TextAnchor.MiddleCenter, mFont);
             UiKit.Place(mOverlayTitle.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(0f, 170f), new Vector2(700f, 110f));
 
-            mOverlayBody = UiKit.CreateText(panel.transform, "Body", string.Empty, 40, WeakText,
-                TextAnchor.MiddleCenter, mFont);
+            mOverlayBody = UiKit.CreateText(panel.transform, "Body", string.Empty, 40,
+                new Color(0.42f, 0.30f, 0.16f, 1f), TextAnchor.MiddleCenter, mFont);
             UiKit.Place(mOverlayBody.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(0f, 50f), new Vector2(700f, 90f));
 
@@ -282,7 +304,7 @@ namespace SeeWho.Client
             }
 
             mTitleText.text = "第 " + mNumber + " 关";
-            mRemainText.text = "剩余 " + mGame.Remaining();
+            mRemainText.text = "剩余 " + mGame.Remaining() + " 个";
 
             RefreshBoard();
             RefreshBuses();
@@ -293,7 +315,7 @@ namespace SeeWho.Client
             }
             else if (mGame.IsStuck)
             {
-                ShowOverlay("卡住了", "没车了，还剩 " + mGame.Remaining() + " 个球", "重开");
+                ShowOverlay("卡住了", "没车了，还剩 " + mGame.Remaining() + " 个", "重开");
             }
             else
             {
@@ -302,7 +324,7 @@ namespace SeeWho.Client
         }
 
         /// <summary>
-        /// 画球坑
+        /// 画球坑：外面一圈草绿边框，里面是沙地
         /// </summary>
         private void RefreshBoard()
         {
@@ -312,11 +334,13 @@ namespace SeeWho.Client
             var width = mCellSize * mLevel.Width;
             var height = mCellSize * mLevel.Height;
 
-            var board = UiKit.CreateImage(mBoardRoot, "Pit", mRoundSprite, new Color(1f, 1f, 1f, 0.04f));
-            UiKit.Place(board.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(width + 24f, height + 24f));
+            var frame = UiKit.CreateImage(mBoardRoot, "PitFrame", mRoundSprite, GrassColor);
+            UiKit.Place(frame.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(width + 32f, height + 32f));
 
-            var ballSize = mCellSize - 6f;
+            var sand = UiKit.CreateImage(mBoardRoot, "PitSand", mRoundSprite, SandColor);
+            UiKit.Place(sand.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(width + 16f, height + 16f));
 
             for (var y = 0; y < mLevel.Height; y++)
             {
@@ -331,10 +355,15 @@ namespace SeeWho.Client
                     var posX = (x - (mLevel.Width - 1) * 0.5f) * mCellSize;
                     var posY = (y - (mLevel.Height - 1) * 0.5f) * mCellSize;
 
-                    var ball = UiKit.CreateImage(mBoardRoot, "B" + x + "_" + y, mCircleSprite,
-                        Palette[color % Palette.Length]);
+                    var person = PersonSprite(color);
+                    var ball = person != null
+                        ? UiKit.CreateImage(mBoardRoot, "P" + x + "_" + y, person, Color.white)
+                        : UiKit.CreateImage(mBoardRoot, "P" + x + "_" + y, mCircleSprite,
+                            Palette[color % Palette.Length]);
+
                     UiKit.Place(ball.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                        new Vector2(posX, posY), new Vector2(ballSize, ballSize));
+                        new Vector2(posX, posY), new Vector2(mCellSize * 0.94f, mCellSize * 1.12f));
+                    ball.preserveAspect = true;
                 }
             }
         }
@@ -349,6 +378,11 @@ namespace SeeWho.Client
             var columns = mLevel.Columns;
             var spacing = 1060f / columns;
 
+            // 车位区的浅蓝底
+            var floor = UiKit.CreateImage(mBusRoot, "Floor", mRoundSprite, WaterColor);
+            UiKit.Place(floor.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 66f), new Vector2(1040f, 400f));
+
             for (var column = 0; column < columns; column++)
             {
                 var centerX = (column - (columns - 1) * 0.5f) * spacing;
@@ -362,9 +396,9 @@ namespace SeeWho.Client
 
                     var color = Palette[card.Color % Palette.Length];
                     var bus = UiKit.CreateImage(mBusRoot, "Bus" + column + "_" + i, mRoundSprite,
-                        WithAlpha(color, isFront ? 0.95f : 0.55f));
+                        WithAlpha(color, isFront ? 1f : 0.55f));
                     UiKit.Place(bus.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                        new Vector2(centerX, i * 132f), new Vector2(spacing - 24f, 118f));
+                        new Vector2(centerX, i * 128f + 8f), new Vector2(spacing - 26f, 114f));
 
                     if (isFront)
                     {
@@ -374,9 +408,19 @@ namespace SeeWho.Client
                         button.onClick.AddListener(() => OnBusClicked(index));
                     }
 
-                    var label = UiKit.CreateText(bus.transform, "Label", card.Points.ToString(), 46,
-                        new Color(1f, 1f, 1f, isFront ? 1f : 0.6f), TextAnchor.MiddleCenter, mFont);
-                    UiKit.Stretch(label.rectTransform);
+                    var label = UiKit.CreateText(bus.transform, "Label", card.Points.ToString(), 48,
+                        new Color(1f, 1f, 1f, isFront ? 1f : 0.75f), TextAnchor.MiddleCenter, mFont);
+                    UiKit.Place(label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                        new Vector2(0f, 8f), new Vector2(160f, 80f));
+
+                    // 车头两扇小窗
+                    for (var w = 0; w < 2; w++)
+                    {
+                        var window = UiKit.CreateImage(bus.transform, "Window" + w, mSmallRoundSprite,
+                            new Color(1f, 1f, 1f, isFront ? 0.92f : 0.5f));
+                        UiKit.Place(window.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                            new Vector2(w == 0 ? -32f : 32f, 12f), new Vector2(46f, 20f));
+                    }
                 }
             }
         }
@@ -397,15 +441,7 @@ namespace SeeWho.Client
                 return;
             }
 
-            if (absorbed == 0)
-            {
-                ShowToast("这辆车没吸到球");
-            }
-            else
-            {
-                ShowToast("吸走 " + absorbed + " 个");
-            }
-
+            ShowToast(absorbed == 0 ? "这辆车没吸到球" : "吸走 " + absorbed + " 个");
             Refresh();
         }
 
@@ -503,6 +539,22 @@ namespace SeeWho.Client
         private static Color WithAlpha(Color color, float alpha)
         {
             return new Color(color.r, color.g, color.b, alpha);
+        }
+
+        /// <summary>
+        /// 颜色编号对应的小人精灵
+        /// </summary>
+        /// <param name="color">颜色编号</param>
+        /// <returns>精灵，没加载到返回空</returns>
+        private Sprite PersonSprite(int color)
+        {
+            if (mPeople.Length == 0)
+            {
+                return null;
+            }
+
+            var index = SpriteMap[color % SpriteMap.Length] % mPeople.Length;
+            return mPeople[index];
         }
 
         /// <summary>
