@@ -132,12 +132,24 @@ namespace SeeWho.Client
             }
 
             var colorCount = 2;
+            var balls = 0;
             for (var i = 0; i < cells.Length; i++)
             {
+                if (cells[i] >= 0)
+                {
+                    balls++;
+                }
+
                 if (cells[i] + 1 > colorCount)
                 {
                     colorCount = cells[i] + 1;
                 }
+            }
+
+            // 原作前几关是 13 个球的小教程，铺到我们的全屏布局里太空，交给生成器
+            if (balls < 60)
+            {
+                return false;
             }
             var result = new BallLevel
             {

@@ -509,7 +509,7 @@ namespace SeeWho.Client
         {
             UiKit.Clear(mBoardRoot);
 
-            mCellSize = Mathf.Min(74f, 1000f / mLevel.Width, 600f / mLevel.Height);
+            mCellSize = Mathf.Min(130f, 1000f / mLevel.Width, 600f / mLevel.Height);
             var width = mCellSize * mLevel.Width;
             var height = mCellSize * mLevel.Height;
 
