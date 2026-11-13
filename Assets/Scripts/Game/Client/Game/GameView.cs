@@ -76,7 +76,9 @@ namespace SeeWho.Client
         private float mCellSize = 60f;
         private GameObject[,] mBallObjects = new GameObject[0, 0];
         private List<GameObject>[] mBusCards = new List<GameObject>[0];
+        private readonly List<RectTransform> mColumnHits = new List<RectTransform>();
         private bool mAnimating;
+        private float mAnimatingSince;
 
         /// <summary>
         /// 加载资源并搭界面
@@ -120,19 +122,53 @@ namespace SeeWho.Client
         }
 
         /// <summary>
-        /// 每帧处理提示淡出
+        /// 每帧处理提示淡出和点车。点车用屏幕矩形判定，不走 Button，避免射线被挡住时点不动
         /// </summary>
         private void Update()
         {
-            if (mToastTimer <= 0f)
+            if (mToastTimer > 0f)
+            {
+                mToastTimer -= Time.deltaTime;
+                var color = mToastText.color;
+                color.a = Mathf.Clamp01(mToastTimer / 0.5f);
+                mToastText.color = color;
+            }
+
+            if (mGame == null || mGame.IsWin)
             {
                 return;
             }
 
-            mToastTimer -= Time.deltaTime;
-            var color = mToastText.color;
-            color.a = Mathf.Clamp01(mToastTimer / 0.5f);
-            mToastText.color = color;
+            // 动画万一被打断，别把输入一直锁着
+            if (mAnimating && Time.time - mAnimatingSince > 2f)
+            {
+                mAnimating = false;
+                Refresh();
+            }
+
+            if (mAnimating)
+
+            if (mOverlay != null && mOverlay.activeSelf)
+            {
+                return;
+            }
+
+            if (!Input.GetMouseButtonDown(0))
+            {
+                return;
+            }
+
+            var pointer = (Vector2)Input.mousePosition;
+            for (var column = 0; column < mColumnHits.Count; column++)
+            {
+                if (mColumnHits[column] != null &&
+                    RectTransformUtility.RectangleContainsScreenPoint(mColumnHits[column], pointer, null))
+                {
+                    Debug.Log("发车：第 " + (column + 1) + " 列");
+                    Dispatch(column, false);
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -386,6 +422,7 @@ namespace SeeWho.Client
             var columns = mLevel.Columns;
             var spacing = 1060f / columns;
             mBusCards = new List<GameObject>[columns];
+            mColumnHits.Clear();
 
             // 车位区铺一块浅蓝底，边框照缓存里的道路图块
             var floor = UiKit.CreateImage(mBusRoot, "Floor", mRoundSprite, new Color(0.58f, 0.83f, 0.96f, 1f));
@@ -400,6 +437,13 @@ namespace SeeWho.Client
             for (var column = 0; column < columns; column++)
             {
                 var centerX = (column - (columns - 1) * 0.5f) * spacing;
+
+                // 整列的点击判定区，点到列里任何地方都算发这列的车
+                var hit = UiKit.CreateNode(mBusRoot, "Hit" + column);
+                UiKit.Place(hit, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                    new Vector2(centerX, 0f), new Vector2(spacing, 430f));
+                mColumnHits.Add(hit);
+
                 var stack = mGame.Stacks[column];
                 mBusCards[column] = new List<GameObject>(stack.Count);
 
@@ -407,7 +451,6 @@ namespace SeeWho.Client
                 {
                     var card = stack[i];
                     var isFront = i == 0;
-                    var index = column;
 
                     var color = Palette[card.Color % Palette.Length];
 
@@ -424,14 +467,6 @@ namespace SeeWho.Client
                     UiKit.Place(bus.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                         new Vector2(centerX, i * 128f + 8f), new Vector2(spacing - 26f, 114f));
                     mBusCards[column].Add(bus.gameObject);
-
-                    if (isFront)
-                    {
-                        bus.raycastTarget = true;
-                        var button = bus.gameObject.AddComponent<Button>();
-                        button.targetGraphic = bus;
-                        button.onClick.AddListener(() => OnBusClicked(index));
-                    }
 
                     var label = UiKit.CreateText(bus.transform, "Label", card.Points.ToString(), 48,
                         new Color(1f, 1f, 1f, isFront ? 1f : 0.75f), TextAnchor.MiddleCenter, mFont);
@@ -451,7 +486,7 @@ namespace SeeWho.Client
         }
 
         /// <summary>
-        /// 点了一辆车
+        /// 点了一辆车（Button 走的入口，保留给以后的卡片点击用）
         /// </summary>
         private void OnBusClicked(int column)
         {
@@ -482,6 +517,7 @@ namespace SeeWho.Client
                 : absorbed == 0 ? "这辆车没吸到球" : "吸走 " + absorbed + " 个");
 
             mAnimating = true;
+            mAnimatingSince = Time.time;
             StartCoroutine(AnimateDispatch(column, oldCells, absorbed));
         }
 
