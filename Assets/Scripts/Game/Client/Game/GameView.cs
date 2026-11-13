@@ -57,6 +57,7 @@ namespace SeeWho.Client
         private Sprite mBgSprite;
         private Sprite mHomeBgSprite;
         private Sprite mHomeBusSprite;
+        private Sprite[] mPitMaps = new Sprite[0];
 
         private BallLevel mLevel;
         private BallGame mGame;
@@ -237,6 +238,20 @@ namespace SeeWho.Client
             mBgSprite = LoadSprite("SeeWho/Art/bg_level");
             mHomeBgSprite = LoadSprite("SeeWho/Art/bg_home");
             mHomeBusSprite = LoadSprite("SeeWho/Art/bus_home");
+
+            var maps = new System.Collections.Generic.List<Sprite>();
+            for (var i = 0; i < 12; i++)
+            {
+                var sprite = LoadSprite("SeeWho/Art/pitmap_" + i.ToString("00"));
+                if (sprite == null)
+                {
+                    break;
+                }
+
+                maps.Add(sprite);
+            }
+
+            mPitMaps = maps.ToArray();
 
             mPeople = new Sprite[18];
             for (var i = 0; i < mPeople.Length; i++)
@@ -559,9 +574,21 @@ namespace SeeWho.Client
             UiKit.Place(frame.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 origin, new Vector2(width + 32f, height + 32f));
 
-            var sand = UiKit.CreateImage(mBoardRoot, "PitSand", mRoundSprite, SandColor);
-            UiKit.Place(sand.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                origin, new Vector2(width + 16f, height + 16f));
+            var mapSprite = mPitMaps.Length > 0 ? mPitMaps[Mathf.Abs(mNumber) % mPitMaps.Length] : null;
+
+            if (mapSprite != null)
+            {
+                // 原作盘面是 40x40 的点阵画，这里铺一张当底
+                var map = UiKit.CreateImage(mBoardRoot, "PitMap", mapSprite, Color.white);
+                UiKit.Place(map.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    origin, new Vector2(width + 16f, height + 16f));
+            }
+            else
+            {
+                var sand = UiKit.CreateImage(mBoardRoot, "PitSand", mRoundSprite, SandColor);
+                UiKit.Place(sand.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    origin, new Vector2(width + 16f, height + 16f));
+            }
 
             mBallObjects = new GameObject[mLevel.Width, mLevel.Height];
 
