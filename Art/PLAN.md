@@ -20,6 +20,7 @@
 | uGUI 界面（背景 / 球坑 / 四列车位 / 浮层） | ✅ 完成 | `Client/Game/GameView.cs` |
 | 美术接入（背景、18 色小人、沙地配色） | ✅ 完成 | `Resources/SeeWho/Art` |
 | 发车动画（吸球缩小、下落、车滑出） | ✅ 完成 | `GameView.AnimateDispatch` |
+| 开始界面（公交站背景 + 大巴士 + 关卡按钮） | ✅ 完成 | `GameView.BuildHome` |
 | 真实关卡数据（1001–1100 导出） | ✅ 完成 | `Resources/SeeWho/Levels` |
 | 点击输入（整列矩形判定，不依赖 Button 射线） | ✅ 完成 | `GameView.Update` |
 
