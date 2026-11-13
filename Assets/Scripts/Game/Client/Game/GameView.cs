@@ -78,6 +78,8 @@ namespace SeeWho.Client
         private Text mHomeLevelText;
         private Text mHomeButtonLabel;
         private RectTransform mRoot;
+        private RectTransform mRoadRoot;
+        private Text mRoadBadgeText;
         private int mStartLevel = 1;
 
         private float mToastTimer;
@@ -310,6 +312,23 @@ namespace SeeWho.Client
 
             BuildRoad(root);
 
+            mRoadRoot = UiKit.CreateNode(root, "RoadRoot");
+            UiKit.Stretch(mRoadRoot);
+
+            // 上路车辆数：N/6
+            var badge = UiKit.CreateImage(root, "RoadBadge", mRoundSprite, new Color(1f, 0.86f, 0.48f, 1f));
+            UiKit.Place(badge.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(-30f, 770f), new Vector2(260f, 62f));
+
+            mRoadBadgeText = UiKit.CreateText(badge.transform, "Label", "0/6", 34,
+                new Color(0.35f, 0.22f, 0.10f, 1f), TextAnchor.MiddleCenter, mFont);
+            UiKit.Stretch(mRoadBadgeText.rectTransform);
+
+            var plus = UiKit.CreateButton(root, "Plus", "+", 40, new Color(0.36f, 0.76f, 0.20f, 1f),
+                mRoundSprite, TextColor, mFont, OnPlusClicked);
+            UiKit.Place(plus.transform as RectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(140f, 770f), new Vector2(64f, 64f));
+
             mBusRoot = UiKit.CreateNode(root, "Buses");
             UiKit.Place(mBusRoot, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(0f, 250f), new Vector2(1060f, 420f));
@@ -334,7 +353,7 @@ namespace SeeWho.Client
         }
 
         /// <summary>
-        /// 画固定道路：竖向跑道 + 底部横向车道，车就沿着它跑
+        /// 底部横向车道，车从车位开上来先走这条
         /// </summary>
         private void BuildRoad(RectTransform root)
         {
@@ -348,22 +367,36 @@ namespace SeeWho.Client
             var lane = UiKit.CreateImage(laneEdge.transform, "LaneFill", mRoundSprite, roadFill);
             UiKit.Place(lane.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 Vector2.zero, new Vector2(1042f, 78f));
+        }
 
-            var roadEdgeImage = UiKit.CreateImage(root, "RoadEdge", mRoundSprite, roadEdge);
-            UiKit.Place(roadEdgeImage.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 760f), new Vector2(236f, 300f));
+        /// <summary>
+        /// 竖着的跑道，一直穿进球坑中间。宽度按球坑挖掉的车道列数算。
+        /// </summary>
+        private void RefreshRoad()
+        {
+            UiKit.Clear(mRoadRoot);
 
-            var road = UiKit.CreateImage(roadEdgeImage.transform, "RoadFill", mRoundSprite, roadFill);
-            UiKit.Place(road.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(218f, 282f));
+            var roadFill = new Color(0.74f, 0.90f, 0.98f, 1f);
+            var roadEdge = new Color(0.40f, 0.72f, 0.88f, 1f);
 
-            // 路面虚线，让它看起来像条路
-            for (var i = 0; i < 3; i++)
+            var lanes = Mathf.Max(2, mLevel.Width / 8);
+            var roadWidth = mCellSize * lanes + 18f;
+            const float roadHeight = 880f;
+
+            var edge = UiKit.CreateImage(mRoadRoot, "RoadEdge", mRoundSprite, roadEdge);
+            UiKit.Place(edge.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 760f), new Vector2(roadWidth, roadHeight));
+
+            var fill = UiKit.CreateImage(edge.transform, "RoadFill", mRoundSprite, roadFill);
+            UiKit.Place(fill.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(roadWidth - 18f, roadHeight - 18f));
+
+            for (var i = 0; i < 5; i++)
             {
-                var dash = UiKit.CreateImage(road.transform, "Dash" + i, mSmallRoundSprite,
+                var dash = UiKit.CreateImage(fill.transform, "Dash" + i, mSmallRoundSprite,
                     new Color(1f, 1f, 1f, 0.9f));
                 UiKit.Place(dash.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    new Vector2(0f, -70f + i * 70f), new Vector2(24f, 34f));
+                    new Vector2(0f, -300f + i * 130f), new Vector2(22f, 46f));
             }
         }
 
@@ -484,6 +517,10 @@ namespace SeeWho.Client
             mTitleText.text = "第 " + mNumber + " 关";
             mTitleText.fontSize = 52;
             mRemainText.text = "剩余 " + mGame.Remaining() + " 个";
+            if (mRoadBadgeText != null)
+            {
+                mRoadBadgeText.text = (mAnimating ? 1 : 0) + "/6";
+            }
 
             RefreshBoard();
             RefreshBuses();
@@ -553,6 +590,8 @@ namespace SeeWho.Client
                     mBallObjects[x, y] = ball.gameObject;
                 }
             }
+
+            RefreshRoad();
         }
 
         /// <summary>
@@ -735,12 +774,17 @@ namespace SeeWho.Client
             var busRect = busCard != null ? (RectTransform)busCard.transform : null;
             var busFrom = busRect != null ? busRect.anchoredPosition : Vector2.zero;
 
-            // 先开到底部车道，再顺着路往上
+            // 先开到底部车道，再顺着路往上开进球坑
             var lanePoint = new Vector2(0f, 465f);
-            var topPoint = new Vector2(0f, 780f);
+            var topPoint = new Vector2(0f, 1150f);
 
-            yield return MoveBus(busRect, busFrom, lanePoint, 0.22f);
-            yield return MoveBus(busRect, lanePoint, topPoint, 0.3f);
+            // 车位卡片比路宽，开上路时缩到路宽
+            var roadWidth = mCellSize * Mathf.Max(2, mLevel.Width / 8) + 18f;
+            var driveScale = Mathf.Clamp(roadWidth / Mathf.Max(1f, busRect != null ? busRect.rect.width : 1f),
+                0.4f, 1f);
+
+            yield return MoveBus(busRect, busFrom, lanePoint, 0.22f, false, driveScale);
+            yield return MoveBus(busRect, lanePoint, topPoint, 0.35f, false, driveScale);
 
             // 被吸走的人飞进车里
             var fliers = new List<RectTransform>();
@@ -767,6 +811,16 @@ namespace SeeWho.Client
                 ? (Vector2)mBoardRoot.InverseTransformPoint(busRect.position)
                 : Vector2.zero;
 
+            // 车身上的数字随吸人递减
+            var busLabel = busCard != null ? busCard.GetComponentInChildren<Text>() : null;
+            var startPoints = 0;
+            if (busLabel != null)
+            {
+                int.TryParse(busLabel.text, out startPoints);
+            }
+
+            var endPoints = Mathf.Max(0, startPoints - absorbed * 10);
+
             const float flyTime = 0.42f;
             const float fallTime = 0.52f;
             var clock = 0f;
@@ -776,6 +830,12 @@ namespace SeeWho.Client
                 clock += Time.deltaTime;
 
                 ApplyFall(moves, from, to, Mathf.Clamp01(clock / fallTime));
+
+                if (busLabel != null)
+                {
+                    var progress = Mathf.Clamp01(clock / flyTime);
+                    busLabel.text = Mathf.RoundToInt(Mathf.Lerp(startPoints, endPoints, progress)).ToString();
+                }
 
                 for (var k = 0; k < fliers.Count; k++)
                 {
@@ -800,8 +860,8 @@ namespace SeeWho.Client
             }
 
             // 开回车道，再沿车道驶出
-            yield return MoveBus(busRect, topPoint, lanePoint, 0.2f);
-            yield return MoveBus(busRect, lanePoint, lanePoint + new Vector2(640f, 0f), 0.3f, true);
+            yield return MoveBus(busRect, topPoint, lanePoint, 0.25f, false, driveScale);
+            yield return MoveBus(busRect, lanePoint, lanePoint + new Vector2(640f, 0f), 0.3f, true, driveScale);
 
             mAnimating = false;
             Refresh();
@@ -816,7 +876,8 @@ namespace SeeWho.Client
         /// <param name="duration">时长</param>
         /// <param name="fade">是否顺便淡出</param>
         /// <returns>协程</returns>
-        private static IEnumerator MoveBus(RectTransform rect, Vector2 from, Vector2 to, float duration, bool fade = false)
+        private static IEnumerator MoveBus(RectTransform rect, Vector2 from, Vector2 to, float duration,
+            bool fade = false, float endScale = 1f)
         {
             if (rect == null)
             {
@@ -825,6 +886,7 @@ namespace SeeWho.Client
 
             var image = rect.GetComponent<Image>();
             var color = image != null ? image.color : Color.white;
+            var startScale = rect.localScale.x;
             var elapsed = 0f;
 
             while (elapsed < duration)
@@ -834,6 +896,9 @@ namespace SeeWho.Client
                 var ease = t * t * (3f - 2f * t);
 
                 rect.anchoredPosition = Vector2.Lerp(from, to, ease);
+                var scale = Mathf.Lerp(startScale, endScale, ease);
+                rect.localScale = new Vector3(scale, scale, 1f);
+
                 if (fade && image != null)
                 {
                     image.color = WithAlpha(color, 1f - ease);
@@ -843,6 +908,7 @@ namespace SeeWho.Client
             }
 
             rect.anchoredPosition = to;
+            rect.localScale = new Vector3(endScale, endScale, 1f);
         }
 
         /// <summary>
@@ -872,6 +938,14 @@ namespace SeeWho.Client
             return mBoardOrigin + new Vector2(
                 (x - (mLevel.Width - 1) * 0.5f) * mCellSize,
                 (y - (mLevel.Height - 1) * 0.5f) * mCellSize);
+        }
+
+        /// <summary>
+        /// 点加号：原作里是看广告多放两辆车上路
+        /// </summary>
+        private void OnPlusClicked()
+        {
+            ShowToast("看广告加车（广告还没接）");
         }
 
         /// <summary>

@@ -151,6 +151,18 @@ namespace SeeWho.Client
             {
                 return false;
             }
+
+            // 中间挖出一条车道，让道路从球坑中间穿上去
+            var lanes = Mathf.Max(2, data.width / 8);
+            var from = data.width / 2 - lanes / 2;
+            for (var x = from; x < from + lanes && x < data.width; x++)
+            {
+                for (var y = 0; y < data.height; y++)
+                {
+                    cells[y * data.width + x] = -1;
+                }
+            }
+
             var result = new BallLevel
             {
                 Id = "real-" + id,
