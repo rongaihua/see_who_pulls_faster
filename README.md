@@ -130,6 +130,21 @@ Unity.exe -batchmode -quit -projectPath <工程路径> -executeMethod SeeWho.Edi
 
 最早的版本：队伍先进先出，队头能上就上、上不了就去候车区，车满发车。现在客户端没接它，但规则、求解器（BFS 最少步数）和生成器都还能用，离线自检里也还在跑。
 
+## 真实关卡数据
+
+`Tools/ArtExtract/export_levels.py` 把缓存里 `zs_game_config.json` 的 `levelNCXHCfg` 导成工程能读的 JSON：
+
+```bash
+python Tools/ArtExtract/export_levels.py <zs_game_config.json> Assets 1001 1100
+```
+
+- 关号换算：**原作 id = 1000 + 界面关号**，第 22 关就是 1022；
+- `queue`（几百个颜色）按颜色数铺成色块，球盘尺寸按球数挑接近方形的比例；
+- `bus` 是分波的车队，`颜色_数字` 里的数字 **除以 10 就是容量**（100 → 10 人，200 → 20 人）；
+- 颜色超过 8 种的关卡先跳过（我们的调色板只有 8 色），读不到就回退到程序生成。
+
+导出结果放 `Assets/Resources/SeeWho/Levels/level_XXXX.json`，运行时 `LevelLoader` 优先读它，读不到再走 `BallGenerator`。
+
 ## 离线自检
 
 ```bash

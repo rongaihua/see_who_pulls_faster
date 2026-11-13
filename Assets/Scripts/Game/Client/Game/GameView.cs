@@ -371,7 +371,7 @@ namespace SeeWho.Client
         {
             UiKit.Clear(mBoardRoot);
 
-            mCellSize = Mathf.Min(74f, 1000f / mLevel.Width);
+            mCellSize = Mathf.Min(74f, 1000f / mLevel.Width, 720f / mLevel.Height);
             var width = mCellSize * mLevel.Width;
             var height = mCellSize * mLevel.Height;
 
@@ -765,10 +765,15 @@ namespace SeeWho.Client
         }
 
         /// <summary>
-        /// 按关号造一关
+        /// 按关号造一关：优先用原作导出的数据，没有再程序生成
         /// </summary>
         private static BallLevel CreateLevel(int number)
         {
+            if (LevelLoader.TryLoad(number, out var real))
+            {
+                return real;
+            }
+
             var difficulty = number <= 5
                 ? BallDifficulty.Easy
                 : number <= 12
