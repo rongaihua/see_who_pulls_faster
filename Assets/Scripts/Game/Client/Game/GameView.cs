@@ -616,8 +616,6 @@ namespace SeeWho.Client
         /// <param name="absorbed">吸走几个</param>
         private IEnumerator AnimateDispatch(int column, int[] oldCells, int absorbed)
         {
-            const float duration = 0.3f;
-
             var moves = new List<RectTransform>();
             var from = new List<Vector2>();
             var to = new List<Vector2>();
@@ -683,37 +681,100 @@ namespace SeeWho.Client
             var busImage = busCard != null ? busCard.GetComponent<Image>() : null;
             var busColor = busImage != null ? busImage.color : Color.white;
 
+            // 车先往前挪一点，凑近球坑
+            var busUp = busFrom + new Vector2(0f, 76f);
             var elapsed = 0f;
-            while (elapsed < duration)
+            const float pullTime = 0.14f;
+
+            while (elapsed < pullTime)
             {
                 elapsed += Time.deltaTime;
-                var t = Mathf.Clamp01(elapsed / duration);
-                var ease = t * t * (3f - 2f * t);
-
-                for (var k = 0; k < moves.Count; k++)
+                var ease = Mathf.Clamp01(elapsed / pullTime);
+                if (busRect != null)
                 {
-                    moves[k].anchoredPosition = Vector2.Lerp(from[k], to[k], ease);
+                    busRect.anchoredPosition = Vector2.Lerp(busFrom, busUp, ease);
                 }
 
-                for (var k = 0; k < removed.Count; k++)
+                yield return null;
+            }
+
+            // 被吸走的人飞进车里
+            var fliers = new List<RectTransform>();
+            var flierFrom = new List<Vector2>();
+            var flierImages = new List<Image>();
+            var flierColors = new List<Color>();
+
+            for (var k = 0; k < removed.Count; k++)
+            {
+                if (removed[k] == null)
                 {
-                    if (removed[k] == null)
+                    continue;
+                }
+
+                var rect = (RectTransform)removed[k].transform;
+                var image = removed[k].GetComponent<Image>();
+                fliers.Add(rect);
+                flierFrom.Add(rect.anchoredPosition);
+                flierImages.Add(image);
+                flierColors.Add(image != null ? image.color : Color.white);
+            }
+
+            var target = busRect != null
+                ? (Vector2)mBoardRoot.InverseTransformPoint(busRect.position)
+                : Vector2.zero;
+
+            const float flyTime = 0.42f;
+            const float fallTime = 0.52f;
+            var clock = 0f;
+
+            while (clock < flyTime + 0.18f)
+            {
+                clock += Time.deltaTime;
+
+                ApplyFall(moves, from, to, Mathf.Clamp01(clock / fallTime));
+
+                for (var k = 0; k < fliers.Count; k++)
+                {
+                    var delay = k * 0.018f;
+                    var local = Mathf.Clamp01((clock - delay) / Mathf.Max(0.18f, flyTime - delay));
+                    var ease = local * local * (3f - 2f * local);
+                    var arc = Mathf.Sin(ease * Mathf.PI) * 70f;
+
+                    fliers[k].anchoredPosition = Vector2.Lerp(flierFrom[k], target, ease) + new Vector2(0f, arc);
+                    var scale = Mathf.Lerp(1f, 0.35f, ease);
+                    fliers[k].localScale = new Vector3(scale, scale, 1f);
+
+                    if (flierImages[k] != null)
                     {
-                        continue;
+                        var color = flierColors[k];
+                        color.a = 1f - ease;
+                        flierImages[k].color = color;
                     }
-
-                    var rect = (RectTransform)removed[k].transform;
-                    var scale = 1f - ease;
-                    rect.localScale = new Vector3(scale, scale, 1f);
                 }
+
+                yield return null;
+            }
+
+            // 车开出屏幕
+            const float exitTime = 0.22f;
+            var dir = column < mLevel.Columns * 0.5f ? -1f : 1f;
+            var exit = busUp + new Vector2(dir * 760f, 30f);
+            elapsed = 0f;
+
+            while (elapsed < exitTime)
+            {
+                elapsed += Time.deltaTime;
+                var t = Mathf.Clamp01(elapsed / exitTime);
+                var ease = t * t;
 
                 if (busRect != null)
                 {
-                    busRect.anchoredPosition = busFrom + new Vector2(0f, -70f * ease);
-                    if (busImage != null)
-                    {
-                        busImage.color = WithAlpha(busColor, Mathf.Lerp(busColor.a, 0f, ease));
-                    }
+                    busRect.anchoredPosition = Vector2.Lerp(busUp, exit, ease);
+                }
+
+                if (busImage != null)
+                {
+                    busImage.color = WithAlpha(busColor, 1f - ease);
                 }
 
                 yield return null;
@@ -721,6 +782,22 @@ namespace SeeWho.Client
 
             mAnimating = false;
             Refresh();
+        }
+
+        /// <summary>
+        /// 把一批矩形从旧位置缓动到新位置
+        /// </summary>
+        /// <param name="rects">矩形</param>
+        /// <param name="from">起点</param>
+        /// <param name="to">终点</param>
+        /// <param name="t">进度 0~1</param>
+        private static void ApplyFall(List<RectTransform> rects, List<Vector2> from, List<Vector2> to, float t)
+        {
+            var ease = t * t * (3f - 2f * t);
+            for (var i = 0; i < rects.Count; i++)
+            {
+                rects[i].anchoredPosition = Vector2.Lerp(from[i], to[i], ease);
+            }
         }
 
         /// <summary>
