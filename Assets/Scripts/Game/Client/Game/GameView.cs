@@ -774,18 +774,6 @@ namespace SeeWho.Client
             var busRect = busCard != null ? (RectTransform)busCard.transform : null;
             var busFrom = busRect != null ? busRect.anchoredPosition : Vector2.zero;
 
-            // 先开到底部车道，再顺着路往上开进球坑
-            var lanePoint = new Vector2(0f, 465f);
-            var topPoint = new Vector2(0f, 1150f);
-
-            // 车位卡片比路宽，开上路时缩到路宽
-            var roadWidth = mCellSize * Mathf.Max(2, mLevel.Width / 8) + 18f;
-            var driveScale = Mathf.Clamp(roadWidth / Mathf.Max(1f, busRect != null ? busRect.rect.width : 1f),
-                0.4f, 1f);
-
-            yield return MoveBus(busRect, busFrom, lanePoint, 0.22f, false, driveScale);
-            yield return MoveBus(busRect, lanePoint, topPoint, 0.35f, false, driveScale);
-
             // 被吸走的人飞进车里
             var fliers = new List<RectTransform>();
             var flierFrom = new List<Vector2>();
@@ -807,10 +795,6 @@ namespace SeeWho.Client
                 flierColors.Add(image != null ? image.color : Color.white);
             }
 
-            var target = busRect != null
-                ? (Vector2)mBoardRoot.InverseTransformPoint(busRect.position)
-                : Vector2.zero;
-
             // 车身上的数字随吸人递减
             var busLabel = busCard != null ? busCard.GetComponentInChildren<Text>() : null;
             var startPoints = 0;
@@ -819,52 +803,120 @@ namespace SeeWho.Client
                 int.TryParse(busLabel.text, out startPoints);
             }
 
-            var endPoints = Mathf.Max(0, startPoints - absorbed * 10);
+            var busImage = busCard != null ? busCard.GetComponent<Image>() : null;
+            var busColor = busImage != null ? busImage.color : Color.white;
 
-            const float flyTime = 0.42f;
+            // 路线：车位 → 车道 → 开进球坑 → 开回车道 → 驶出
+            var points = new[]
+            {
+                busFrom,
+                new Vector2(0f, 465f),
+                new Vector2(0f, 1150f),
+                new Vector2(0f, 465f),
+                new Vector2(660f, 465f),
+            };
+            var durations = new[] { 0.22f, 0.5f, 0.5f, 0.3f };
+
+            var roadWidth = mCellSize * Mathf.Max(2, mLevel.Width / 8) + 18f;
+            var driveScale = Mathf.Clamp(roadWidth / Mathf.Max(1f, busRect != null ? busRect.rect.width : 1f),
+                0.4f, 1f);
+
             const float fallTime = 0.52f;
+            const float flyStart = 0.22f;
+            const float flyTime = 0.4f;
             var clock = 0f;
 
-            while (clock < flyTime + 0.18f)
+            for (var seg = 0; seg < durations.Length; seg++)
             {
-                clock += Time.deltaTime;
+                var segFrom = points[seg];
+                var segTo = points[seg + 1];
+                var isLast = seg == durations.Length - 1;
+                var elapsed = 0f;
 
-                ApplyFall(moves, from, to, Mathf.Clamp01(clock / fallTime));
-
-                if (busLabel != null)
+                while (elapsed < durations[seg])
                 {
-                    var progress = Mathf.Clamp01(clock / flyTime);
-                    busLabel.text = Mathf.RoundToInt(Mathf.Lerp(startPoints, endPoints, progress)).ToString();
-                }
+                    elapsed += Time.deltaTime;
+                    clock += Time.deltaTime;
 
-                for (var k = 0; k < fliers.Count; k++)
-                {
-                    var delay = k * 0.018f;
-                    var local = Mathf.Clamp01((clock - delay) / Mathf.Max(0.18f, flyTime - delay));
-                    var ease = local * local * (3f - 2f * local);
-                    var arc = Mathf.Sin(ease * Mathf.PI) * 70f;
+                    var t = Mathf.Clamp01(elapsed / durations[seg]);
+                    var ease = t * t * (3f - 2f * t);
 
-                    fliers[k].anchoredPosition = Vector2.Lerp(flierFrom[k], target, ease) + new Vector2(0f, arc);
-                    var scale = Mathf.Lerp(1f, 0.35f, ease);
-                    fliers[k].localScale = new Vector3(scale, scale, 1f);
-
-                    if (flierImages[k] != null)
+                    if (busRect != null)
                     {
-                        var color = flierColors[k];
-                        color.a = 1f - ease;
-                        flierImages[k].color = color;
+                        busRect.anchoredPosition = Vector2.Lerp(segFrom, segTo, ease);
+                        var scale = Mathf.Lerp(1f, driveScale, Mathf.Clamp01(clock / 0.25f));
+                        busRect.localScale = new Vector3(scale, scale, 1f);
                     }
+
+                    if (isLast && busImage != null)
+                    {
+                        busImage.color = WithAlpha(busColor, 1f - ease);
+                    }
+
+                    ApplyFall(moves, from, to, Mathf.Clamp01(clock / fallTime));
+
+                    var arrived = UpdateFliers(fliers, flierFrom, flierImages, flierColors, busRect,
+                        clock, flyStart, flyTime);
+
+                    if (busLabel != null)
+                    {
+                        busLabel.text = Mathf.Max(0, startPoints - arrived * 10).ToString();
+                    }
+
+                    yield return null;
                 }
-
-                yield return null;
             }
-
-            // 开回车道，再沿车道驶出
-            yield return MoveBus(busRect, topPoint, lanePoint, 0.25f, false, driveScale);
-            yield return MoveBus(busRect, lanePoint, lanePoint + new Vector2(640f, 0f), 0.3f, true, driveScale);
 
             mAnimating = false;
             Refresh();
+        }
+
+        /// <summary>
+        /// 让被吸走的小人飞向正在行驶的车。车一直在动，所以目标每帧都要重算。
+        /// </summary>
+        /// <returns>已经飞进车里的数量</returns>
+        private int UpdateFliers(List<RectTransform> fliers, List<Vector2> flierFrom, List<Image> images,
+            List<Color> colors, RectTransform bus, float clock, float flyStart, float flyTime)
+        {
+            var arrived = 0;
+
+            var busLocal = bus != null
+                ? (Vector2)mBoardRoot.InverseTransformPoint(bus.position)
+                : Vector2.zero;
+
+            for (var k = 0; k < fliers.Count; k++)
+            {
+                var start = flyStart + k * 0.02f;
+                var local = Mathf.Clamp01((clock - start) / flyTime);
+
+                if (local >= 1f)
+                {
+                    arrived++;
+                    fliers[k].localScale = Vector3.zero;
+                    if (images[k] != null)
+                    {
+                        images[k].color = WithAlpha(colors[k], 0f);
+                    }
+
+                    continue;
+                }
+
+                var ease = local * local * (3f - 2f * local);
+                var arc = Mathf.Sin(ease * Mathf.PI) * 60f;
+
+                fliers[k].anchoredPosition = Vector2.Lerp(flierFrom[k], busLocal, ease) + new Vector2(0f, arc);
+                var scale = Mathf.Lerp(1f, 0.4f, ease);
+                fliers[k].localScale = new Vector3(scale, scale, 1f);
+
+                if (images[k] != null)
+                {
+                    var color = colors[k];
+                    color.a = 1f - ease;
+                    images[k].color = color;
+                }
+            }
+
+            return arrived;
         }
 
         /// <summary>
