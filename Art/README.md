@@ -79,7 +79,9 @@ python Tools/ArtExtract/extract_art.py Art/local/wx641f825d5dce9ea9/usr/gamecach
 
 | 文件 | 来源 | 说明 |
 |---|---|---|
-| `Resources/SeeWho/Art/bg_level.png` | `prefabs/179444969224831.png` | 主背景：蓝天、草地、彩旗、木牌。**缓存里扩展名是 .png，内容其实是 webp**，脚本会转成真 PNG |
+| `Resources/SeeWho/Art/bg_level.png` | `prefabs/179444969224831.png` | 关卡背景：蓝天、草地、彩旗、木牌。**缓存里扩展名是 .png，内容其实是 webp**，脚本会转成真 PNG |
+| `Resources/SeeWho/Art/bg_home.png` | `prefabs/179428655497023.jpg` | 主页背景：公交站、马路、行道树 |
+| `Resources/SeeWho/Art/bus_home.png` | `prefabs/17942865459276.png` | 主页的大巴士（从宽幅插画右侧裁出来） |
 | `Resources/SeeWho/Art/People/person_00..17.png` | `prefabs/179428657819468.png` | 小人精灵图（8 列 × 2 行，列宽 48）切出来的 18 种颜色 |
 
 切图要点：

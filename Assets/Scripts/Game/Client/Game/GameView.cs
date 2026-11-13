@@ -55,6 +55,8 @@ namespace SeeWho.Client
         private Sprite mRoundSprite;
         private Sprite mSmallRoundSprite;
         private Sprite mBgSprite;
+        private Sprite mHomeBgSprite;
+        private Sprite mHomeBusSprite;
 
         private BallLevel mLevel;
         private BallGame mGame;
@@ -132,12 +134,12 @@ namespace SeeWho.Client
             UiKit.Clear(mBusRoot);
             mColumnHits.Clear();
 
-            mTitleText.text = "看谁先上车";
-            mTitleText.fontSize = 46;
+            mTitleText.text = string.Empty;
+            mTitleText.fontSize = 52;
             mRemainText.text = string.Empty;
 
-            mHomeLevelText.text = mStartLevel > 1 ? "继续第 " + mStartLevel + " 关" : "从第 1 关开始";
-            mHomeButtonLabel.text = mStartLevel > 1 ? "继续游戏" : "开始游戏";
+            mHomeButtonLabel.text = "第 " + mStartLevel + " 关";
+            mHomeLevelText.text = mStartLevel > 1 ? "继续上次的进度" : "点一下开始游戏";
             mHome.SetActive(true);
             mOverlay.SetActive(false);
         }
@@ -230,6 +232,8 @@ namespace SeeWho.Client
             mRoundSprite = UiKit.CreateRoundedSprite(96, 24);
             mSmallRoundSprite = UiKit.CreateRoundedSprite(32, 9);
             mBgSprite = LoadSprite("SeeWho/Art/bg_level");
+            mHomeBgSprite = LoadSprite("SeeWho/Art/bg_home");
+            mHomeBusSprite = LoadSprite("SeeWho/Art/bus_home");
 
             mPeople = new Sprite[18];
             for (var i = 0; i < mPeople.Length; i++)
@@ -327,7 +331,7 @@ namespace SeeWho.Client
         }
 
         /// <summary>
-        /// 开始界面：游戏名压在木牌上，中间一个开始 / 继续按钮
+        /// 开始界面：照原作主页 —— 公交站背景 + 大巴士 + 底部绿色关卡按钮
         /// </summary>
         private void BuildHome(RectTransform root)
         {
@@ -335,22 +339,32 @@ namespace SeeWho.Client
             UiKit.Stretch(home);
             mHome = home.gameObject;
 
-            var dark = new Color(0.16f, 0.30f, 0.45f, 1f);
+            var bg = UiKit.CreateImage(home, "Bg", mHomeBgSprite, Color.white);
+            UiKit.Stretch(bg.rectTransform);
+            if (mHomeBgSprite == null)
+            {
+                bg.color = new Color(0.55f, 0.82f, 0.96f);
+            }
 
-            mHomeLevelText = UiKit.CreateText(home, "Level", "从第 1 关开始", 40, dark, TextAnchor.MiddleCenter, mFont);
-            UiKit.Place(mHomeLevelText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0f, 150f), new Vector2(700f, 70f));
+            var bus = UiKit.CreateImage(home, "Bus", mHomeBusSprite, Color.white);
+            UiKit.Place(bus.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, 150f), new Vector2(700f, 550f));
+            bus.preserveAspect = true;
 
-            var start = UiKit.CreateButton(home, "Start", "开始游戏", 52, ButtonColor, mRoundSprite, TextColor,
-                mFont, OnStartClicked);
+            var ring = UiKit.CreateImage(home, "StartRing", mRoundSprite, new Color(1f, 1f, 1f, 0.96f));
+            UiKit.Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -500f), new Vector2(660f, 178f));
+
+            var start = UiKit.CreateButton(home, "Start", "第 1 关", 62, new Color(0.36f, 0.76f, 0.20f, 1f),
+                mRoundSprite, TextColor, mFont, OnStartClicked);
             UiKit.Place(start.transform as RectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0f, -40f), new Vector2(480f, 150f));
+                new Vector2(0f, -500f), new Vector2(640f, 158f));
             mHomeButtonLabel = start.GetComponentInChildren<Text>();
 
-            var hint = UiKit.CreateText(home, "Hint", "点每列最前面的车，吸走同色的小人", 28, dark,
-                TextAnchor.MiddleCenter, mFont);
-            UiKit.Place(hint.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0f, -180f), new Vector2(900f, 60f));
+            mHomeLevelText = UiKit.CreateText(home, "Tip", "点一下开始游戏", 30,
+                new Color(1f, 1f, 1f, 0.92f), TextAnchor.MiddleCenter, mFont);
+            UiKit.Place(mHomeLevelText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -640f), new Vector2(800f, 60f));
         }
 
         /// <summary>
