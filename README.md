@@ -32,11 +32,12 @@ Assets/
     Game/
       Client/            客户端逻辑（seewho_client）
         Entry/           入口 GameEntry
-        Game/            界面 GameView + uGUI 小工具 UiKit
+        Game/            界面 GameView + uGUI 小工具 UiKit + 关卡读取 LevelLoader
       Common/            纯 C# 公共逻辑，不依赖 Unity（seewho_common）
         Balls/           当前的球堆玩法：球盘、发车、吸球、下落、生成器
         Level/           第一版的排队上车规则（留着做备用玩法）
-  Resources/SeeWho/      字体和 UI 图（从 PixelCar 借的）
+  Resources/SeeWho/      字体、UI 图、拆出来的小人和关卡 JSON
+Art/                     原作缓存快照（素材、配置、wxapkg），只做本地对照，不打进包
 Packages/
   manifest.json          Unity 包依赖
   my-game-libra/         libra 子模块，嵌入式包
@@ -44,6 +45,8 @@ ProjectSettings/
   ProjectVersion.txt     Unity 版本
 Tools/
   LevelLab/              离线自检程序（dotnet，不依赖 Unity）
+  ArtExtract/            拆图 + 导关卡脚本
+PLAN.md                  开发计划（现状、阶段、技术债）
 ```
 
 ## libra 的引用方式
@@ -63,10 +66,10 @@ Tools/
 
 ## 美术资源（从缓存拆的）
 
-资源来自微信小游戏的缓存快照（`...\local\wx641f825d5dce9ea9\usr\gamecaches`），拆图脚本在 `Tools/ArtExtract/extract_art.py`：
+缓存快照已经放进工程的 `Art/` 目录（`Art/local/.../usr/gamecaches`），拆图脚本在 `Tools/ArtExtract/extract_art.py`：
 
 ```bash
-python Tools/ArtExtract/extract_art.py <缓存 gamecaches 目录> Assets
+python Tools/ArtExtract/extract_art.py Art/local/wx641f825d5dce9ea9/usr/gamecaches Assets
 ```
 
 拆出来的东西：
@@ -135,7 +138,7 @@ Unity.exe -batchmode -quit -projectPath <工程路径> -executeMethod SeeWho.Edi
 `Tools/ArtExtract/export_levels.py` 把缓存里 `zs_game_config.json` 的 `levelNCXHCfg` 导成工程能读的 JSON：
 
 ```bash
-python Tools/ArtExtract/export_levels.py <zs_game_config.json> Assets 1001 1100
+python Tools/ArtExtract/export_levels.py Art/local/wx641f825d5dce9ea9/usr/config/wx_ksxsc/zs_game_config.json Assets 1001 1100
 ```
 
 - 关号换算：**原作 id = 1000 + 界面关号**，第 22 关就是 1022；

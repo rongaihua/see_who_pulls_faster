@@ -245,3 +245,9 @@ x86/
 
 # 界面预览输出
 /Preview/
+
+# Art 下的缓存快照要提交（icon 目录和 wxapkg 包原本被上面的规则忽略）
+!/Art/icon
+!/Art/icon/**
+!/Art/packages
+!/Art/packages/**
