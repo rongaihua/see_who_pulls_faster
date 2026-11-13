@@ -147,11 +147,18 @@ python Tools/ArtExtract/export_levels.py Art/local/wx641f825d5dce9ea9/usr/config
 ```
 
 - 关号换算：**原作 id = 1000 + 界面关号**，第 22 关就是 1022；
-- `queue`（几百个颜色）按颜色数铺成色块，球盘尺寸按球数挑接近方形的比例；
+- 每关人数 = **车容量**（`bus` 里的数字 ÷ 10）：其中一小批（111–137 人）摆在初始盘面上，其余作为**掉落队列**，吸掉人之后从顶部补进来；
 - `bus` 是分波的车队，`颜色_数字` 里的数字 **除以 10 就是容量**（100 → 10 人，200 → 20 人）；
 - 颜色超过 8 种的关卡先跳过（我们的调色板只有 8 色），读不到就回退到程序生成。
 
-导出结果放 `Assets/Resources/SeeWho/Levels/level_XXXX.json`，运行时 `LevelLoader` 优先读它，读不到再走 `BallGenerator`。
+导出结果放 `Assets/Res/SeeWho/Levels/level_XXXX.json`（**不在 Resources 里**），运行时 `LevelLoader` 通过 libra 的 `ResMgr` 按工程路径加载：
+
+```csharp
+var handle = MyGame.G.ResMgr.LoadResSync<TextAsset>("Assets/Res/SeeWho/Levels/level_1022.json");
+var json = (handle.Asset as TextAsset).text;
+```
+
+读不到再走 `BallGenerator` 程序生成。
 
 ## 离线自检
 

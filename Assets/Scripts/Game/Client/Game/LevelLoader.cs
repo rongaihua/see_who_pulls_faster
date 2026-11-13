@@ -80,8 +80,27 @@ namespace SeeWho.Client
             level = null;
 
             var id = 1000 + number;
-            var asset = Resources.Load<TextAsset>("SeeWho/Levels/level_" + id);
-            if (asset == null)
+            var resMgr = MyGame.G.ResMgr;
+
+            // 关卡 JSON 放在 Assets/Res 下，走 libra 的资源加载器
+            var relative = "SeeWho/Levels/level_" + id + ".json";
+            string json = null;
+
+            if (resMgr != null)
+            {
+                var handle = resMgr.LoadResSync<TextAsset>("Assets/Res/" + relative);
+                var asset = handle != null ? handle.Asset as TextAsset : null;
+                json = asset != null ? asset.text : null;
+                resMgr.Release(handle);
+            }
+
+            if (json == null)
+            {
+                // 没有 libra 的场景（比如编辑器截图工具）直接读文件
+                json = ReadFromDisk(relative);
+            }
+
+            if (json == null)
             {
                 return false;
             }
@@ -89,7 +108,7 @@ namespace SeeWho.Client
             LevelData data;
             try
             {
-                data = JsonUtility.FromJson<LevelData>(asset.text);
+                data = JsonUtility.FromJson<LevelData>(json);
             }
             catch
             {
@@ -177,6 +196,24 @@ namespace SeeWho.Client
 
             level = result;
             return true;
+        }
+
+        /// <summary>
+        /// 兜底：没有资源管理器时，直接从工程目录读文件（只编辑器里有效）
+        /// </summary>
+        /// <param name="relative">相对 Assets/Res 的路径</param>
+        /// <returns>文件内容，读不到返回空</returns>
+        private static string ReadFromDisk(string relative)
+        {
+            try
+            {
+                var path = System.IO.Path.Combine(Application.dataPath, "Res", relative);
+                return System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

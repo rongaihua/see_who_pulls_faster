@@ -197,7 +197,7 @@ def main():
         config = json.load(handle)
 
     levels = config["levelNCXHCfg"]
-    out_dir = os.path.join(assets_dir, "Resources", "SeeWho", "Levels")
+    out_dir = os.path.join(assets_dir, "Res", "SeeWho", "Levels")
     os.makedirs(out_dir, exist_ok=True)
 
     exported = 0
