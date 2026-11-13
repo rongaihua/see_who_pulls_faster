@@ -1,0 +1,19 @@
+{
+    "name": "seewho_client",
+    "rootNamespace": "SeeWho.Client",
+    "references": [
+        "seewho_common",
+        "MyGame.Shared",
+        "MyGame.Client",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
