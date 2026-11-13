@@ -9,12 +9,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using SeeWho.Common.Balls;
 using SeeWho.Common.Level;
 
 namespace LevelLab
 {
     /// <summary>
-    /// 命令行自检：规则、求解器、生成器
+    /// 命令行自检：规则、求解器、生成器、球堆玩法
     /// </summary>
     internal static class Program
     {
@@ -32,6 +33,10 @@ namespace LevelLab
             TestGeneratedLevelsAreSolvable();
             TestLargeLevelPerformance();
             PrintSamples();
+
+            TestBallAbsorbAndDrop();
+            TestBallGeneration();
+            PrintBallSample();
 
             Console.WriteLine();
             Console.WriteLine(sFailures == 0 ? "全部通过" : "失败 " + sFailures + " 项");
@@ -258,6 +263,104 @@ namespace LevelLab
                 Passengers = passengers,
                 BusDeck = deck,
             };
+        }
+
+        /// <summary>
+        /// 球堆：吸球和下落
+        /// </summary>
+        private static void TestBallAbsorbAndDrop()
+        {
+            // 3 宽 3 高，第 0 行在最下面
+            // 行 2: 0 1 1
+            // 行 1: 1 1 0
+            // 行 0: 0 0 1
+            var level = new BallLevel
+            {
+                Id = "ball-test",
+                Width = 3,
+                Height = 3,
+                ColorCount = 2,
+                Columns = 2,
+                Visible = 2,
+                Cells = new[] { 0, 0, 1, 1, 1, 0, 0, 1, 1 },
+                Deck = new[] { new BusCard(0, 10), new BusCard(1, 10) },
+            };
+
+            var game = BallGame.Create(level);
+            Check("球堆：开局 9 个球", game.Remaining() == 9);
+            Check("球堆：预览能吸 4 个", game.PreviewAbsorb(0) == 4);
+
+            var got = game.Dispatch(0);
+            Check("球堆：吸到 4 个", got == 4);
+            Check("球堆：剩 5 个", game.Remaining() == 5);
+
+            // 第 0 列原来的 1 落到最底下，上面空了
+            var bottomLeft = game.Cells[level.Index(0, 0)];
+            var middleLeft = game.Cells[level.Index(0, 1)];
+            Check("球堆：吸完会下落", bottomLeft == 1 && middleLeft == -1);
+        }
+
+        /// <summary>
+        /// 三档难度各生成几关，全部能打通
+        /// </summary>
+        private static void TestBallGeneration()
+        {
+            var watch = Stopwatch.StartNew();
+
+            foreach (var difficulty in new[] { BallDifficulty.Easy, BallDifficulty.Medium, BallDifficulty.Hard })
+            {
+                for (var seed = 1; seed <= 4; seed++)
+                {
+                    var level = BallGenerator.Generate(BallGeneratorOptions.For(difficulty, seed));
+                    Check(difficulty + " 球堆 #" + seed + "：生成成功", level != null);
+                    if (level == null)
+                    {
+                        continue;
+                    }
+
+                    Check(difficulty + " 球堆 #" + seed + "：贪心可通关", BallGenerator.Verify(level));
+
+                    var seats = 0;
+                    for (var i = 0; i < level.Deck.Length; i++)
+                    {
+                        seats += level.Deck[i].Capacity;
+                    }
+
+                    Check(difficulty + " 球堆 #" + seed + "：座位够用",
+                        seats >= level.Width * level.Height &&
+                        level.Deck.Length >= level.Columns * level.Visible);
+                }
+            }
+
+            watch.Stop();
+            Console.WriteLine("球堆生成耗时 " + watch.ElapsedMilliseconds + " ms");
+        }
+
+        /// <summary>
+        /// 用字符把球堆画出来，看看色块形状
+        /// </summary>
+        private static void PrintBallSample()
+        {
+            var level = BallGenerator.Generate(BallGeneratorOptions.For(BallDifficulty.Medium, 22));
+            if (level == null)
+            {
+                Console.WriteLine("球堆样例生成失败");
+                return;
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("球堆样例 " + level + "，车 " + level.Deck.Length + " 辆：");
+            for (var y = level.Height - 1; y >= 0; y--)
+            {
+                var line = new System.Text.StringBuilder("    ");
+                for (var x = 0; x < level.Width; x++)
+                {
+                    line.Append("0123456789"[level.Cells[level.Index(x, y)]]);
+                    line.Append(' ');
+                }
+
+                Console.WriteLine(line.ToString());
+            }
         }
 
         /// <summary>

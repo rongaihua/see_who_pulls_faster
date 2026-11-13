@@ -31,6 +31,11 @@ namespace SeeWho.Client
         public Camera MainCamera { get; private set; }
 
         /// <summary>
+        /// 游戏界面
+        /// </summary>
+        public GameView View { get; private set; }
+
+        /// <summary>
         /// 唤醒
         /// </summary>
         private void Awake()
@@ -38,6 +43,23 @@ namespace SeeWho.Client
             sInstance = this;
             MyGame.G.Init();
             SetupCamera();
+            StartGame(1);
+        }
+
+        /// <summary>
+        /// 开第几关
+        /// </summary>
+        /// <param name="number">关号</param>
+        public void StartGame(int number)
+        {
+            if (View == null)
+            {
+                var viewObject = new GameObject("GameView");
+                viewObject.transform.SetParent(transform, false);
+                View = viewObject.AddComponent<GameView>();
+            }
+
+            View.StartGame(number);
         }
 
         /// <summary>

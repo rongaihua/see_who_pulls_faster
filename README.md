@@ -1,6 +1,9 @@
 # see_who_pulls_faster
 
-《看谁先上车》类休闲解谜小游戏的 Unity 工程，玩法是排队上车 / 挪车出库的顺序解谜。
+《看谁先上车》的复刻练习工程（Unity + uGUI）。
+
+玩法照着原作第 22 关的样子做：上面是一个装满彩球的坑，下面是四列等着发车的巴士，
+点每列最前面那辆车，它会把坑里同色的球吸走，上面的球往下落。
 
 ## 环境
 
@@ -25,20 +28,22 @@ git submodule update --init --recursive
 Assets/
   Scenes/                入口场景（entry.unity，由编辑器菜单生成）
   Scripts/
-    Editor/              编辑器工具（seewho_editor）
+    Editor/              编辑器工具（seewho_editor）：入口场景、界面截图
     Game/
       Client/            客户端逻辑（seewho_client）
         Entry/           入口 GameEntry
+        Game/            界面 GameView + uGUI 小工具 UiKit
       Common/            纯 C# 公共逻辑，不依赖 Unity（seewho_common）
-        Level/           关卡核心：数据、规则、求解器、生成器
-  Res/                   美术、音频等资源
+        Balls/           当前的球堆玩法：球盘、发车、吸球、下落、生成器
+        Level/           第一版的排队上车规则（留着做备用玩法）
+  Resources/SeeWho/      字体和 UI 图（从 PixelCar 借的）
 Packages/
   manifest.json          Unity 包依赖
   my-game-libra/         libra 子模块，嵌入式包
 ProjectSettings/
   ProjectVersion.txt     Unity 版本
 Tools/
-  LevelLab/              关卡核心的离线自检程序（dotnet，不依赖 Unity）
+  LevelLab/              离线自检程序（dotnet，不依赖 Unity）
 ```
 
 ## libra 的引用方式
@@ -58,7 +63,7 @@ Tools/
 
 ## 入口场景
 
-打开工程后点菜单 **SeeWho/生成入口场景**，会生成 `Assets/Scenes/entry.unity` 并加进 Build Settings。场景里只有一个挂着 `GameEntry` 的 Entry 物体，`GameEntry` 负责初始化 libra 的 `MyGame.G` 并准备正交相机。
+打开工程后点菜单 **SeeWho/生成入口场景**，会生成 `Assets/Scenes/entry.unity` 并加进 Build Settings。场景里只有一个挂着 `GameEntry` 的 Entry 物体，`GameEntry` 负责初始化 libra 的 `MyGame.G`、准备相机，然后起一局。
 
 命令行生成（CI / 无界面）：
 
@@ -66,40 +71,52 @@ Tools/
 Unity.exe -batchmode -quit -projectPath <工程路径> -executeMethod SeeWho.Editor.EntrySceneBuilder.Build
 ```
 
-## 关卡核心
+## 球堆玩法（`Common/Balls`）
 
-纯 C#，放在 `Assets/Scripts/Game/Common/Level`，不引用 UnityEngine，可以脱离 Unity 跑。
+规则（`BallGame`）：
 
-规则（`GameRules`）：
+1. 球盘按 `Width × Height` 存颜色，第 0 行在最下面；
+2. 底部四列各摆 3 辆车，**只能发每列最前面那辆**；
+3. 发出去的车把盘上同色的球吸走，从下往上吸，最多吸自己的容量；
+4. 吸完每列的球往下落，上面的颜色才会露出来；
+5. 球盘清空就通关；没车了还有球就卡住。
 
-1. 队伍先进先出，只有队头能动；
-2. 队头颜色对得上某个车位上还有空座的车，就能上车；
-3. 上不了车就去候车区，候车区满还上不了车就卡死；
-4. 候车区里的人随时可以补位上车；
-5. 车坐满就发车，下一辆车立刻进站。
+车身上的数字 = `容量 × 10`，和原作一样是 100 / 200 这种写法。
 
 | 类 | 职责 |
 |---|---|
-| `LevelDefinition` | 关卡的静态数据：颜色数、座位数、车位、候车区、队伍、车队 |
-| `GameState` | 局面：队头下标、候车区、车位上的车、车队进度 |
-| `Move` | 一步操作：队头上车 / 队头候车 / 候车区上车 |
-| `GameRules` | 合法操作、执行操作、胜负判定 |
-| `LevelSolver` | 广度优先求最少步数的解，无解也能判定 |
-| `LevelGenerator` | 随机造关卡 + 求解验证，按步数和候车压力卡难度 |
-| `LevelStats` | 难度指标：步数、候车次数、候车区峰值 |
+| `BallLevel` | 静态数据：球盘尺寸、颜色、`Cells`、车队 `Deck` |
+| `BusCard` | 一辆车：颜色 + 容量 |
+| `BallGame` | 局面：发车、吸球、下落、胜负判定 |
+| `BallGenerator` | 造关卡：先铺同色色块，再配够用的车队，最后用贪心验一遍能通关 |
 
-关卡生成时保证每种颜色的人数是座位数的整数倍，否则最后一辆车永远坐不满、会把车位一直占住。
+生成器会保证车队总容量约是球数的 1.35 倍，并且至少能摆满所有车位；否则一步吸空就会过不去。
 
-### 离线自检
+## 第一版排队规则（`Common/Level`）
+
+最早的版本：队伍先进先出，队头能上就上、上不了就去候车区，车满发车。现在客户端没接它，但规则、求解器（BFS 最少步数）和生成器都还能用，离线自检里也还在跑。
+
+## 离线自检
 
 ```bash
 cd Tools/LevelLab
 dotnet run -c Release
 ```
 
-会跑规则/求解/生成的断言，再打印三档难度的样例关卡；全过时退出码为 0。
+会跑两套规则的断言（吸球、下落、生成、可通关），再打印样例；全过时退出码为 0。
+
+## 界面预览
+
+没有显示器时可以让 Unity 直接渲染一张 PNG：
+
+```bash
+Unity.exe -batchmode -quit -projectPath <工程路径> -executeMethod SeeWho.Editor.UiPreview.Capture
+```
+
+输出到工程根目录的 `Preview/ui_easy.png`、`ui_hard.png`、`ui_mid.png`。
 
 ## 下一步
 
-- `GameEntry` 还没接玩法模块，下一步把 `LevelDefinition` 喂给客户端，做队伍、车位、候车区的表现
-- 关卡数据先由 `LevelGenerator` 生成成 JSON，编辑器里再手调
+- 加发车和吸球的动画（车开出去、球飞进车、球堆下落）
+- 把球盘换成原作那种带形状的地图，而不是整块矩形
+- 接上原作的关卡数据（`queue` / `bus` 里的 `颜色_数量`）

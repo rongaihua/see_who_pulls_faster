@@ -242,3 +242,6 @@ x86/
 
 # Tools 下的工程文件不是 Unity 生成的，要提交
 !Tools/**/*.csproj
+
+# 界面预览输出
+/Preview/

@@ -2,7 +2,10 @@
     "name": "seewho_editor",
     "rootNamespace": "SeeWho.Editor",
     "references": [
-        "seewho_client"
+        "seewho_client",
+        "seewho_common",
+        "MyGame.Shared",
+        "MyGame.Client"
     ],
     "includePlatforms": [
         "Editor"

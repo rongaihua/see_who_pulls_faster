@@ -59,7 +59,28 @@ namespace SeeWho.Common.Level
                 throw new ArgumentException("关卡不受支持：" + error, nameof(level));
             }
 
-            var start = GameRules.CreateInitial(level);
+            return SolveFrom(level, GameRules.CreateInitial(level), maxStates);
+        }
+
+        /// <summary>
+        /// 从任意局面开始求最少步数的解。用来判断当前局面还有没有救，以及给玩家提示。
+        /// </summary>
+        /// <param name="level">关卡</param>
+        /// <param name="start">起始局面，只读，不会被改</param>
+        /// <param name="maxStates">最多搜多少个局面</param>
+        /// <returns>求解结果</returns>
+        public static SolveResult SolveFrom(LevelDefinition level, GameState start, int maxStates = DefaultMaxStates)
+        {
+            if (!GameRules.IsSupported(level, out var error))
+            {
+                throw new ArgumentException("关卡不受支持：" + error, nameof(level));
+            }
+
+            if (start == null)
+            {
+                throw new ArgumentNullException(nameof(start));
+            }
+
             if (GameRules.IsWin(level, start))
             {
                 return new SolveResult { Solvable = true, Visited = 1 };
