@@ -72,6 +72,12 @@ namespace SeeWho.Client
         private Button mOverlayButton;
         private Text mOverlayButtonLabel;
 
+        private GameObject mHome;
+        private Text mHomeLevelText;
+        private Text mHomeButtonLabel;
+        private RectTransform mRoot;
+        private int mStartLevel = 1;
+
         private float mToastTimer;
         private float mCellSize = 60f;
         private GameObject[,] mBallObjects = new GameObject[0, 0];
@@ -98,7 +104,42 @@ namespace SeeWho.Client
             mNumber = number;
             mLevel = CreateLevel(number);
             mGame = BallGame.Create(mLevel);
+
+            if (mHome != null)
+            {
+                mHome.SetActive(false);
+            }
+
             Refresh();
+        }
+
+        /// <summary>
+        /// 回到开始界面：背景 + 游戏名 + 开始按钮
+        /// </summary>
+        public void ShowHome()
+        {
+            mStartLevel = Mathf.Max(1, PlayerPrefs.GetInt("seewho.level", 1));
+
+            if (mHome == null)
+            {
+                BuildHome(mRoot);
+            }
+
+            mGame = null;
+            mLevel = null;
+
+            UiKit.Clear(mBoardRoot);
+            UiKit.Clear(mBusRoot);
+            mColumnHits.Clear();
+
+            mTitleText.text = "看谁先上车";
+            mTitleText.fontSize = 46;
+            mRemainText.text = string.Empty;
+
+            mHomeLevelText.text = mStartLevel > 1 ? "继续第 " + mStartLevel + " 关" : "从第 1 关开始";
+            mHomeButtonLabel.text = mStartLevel > 1 ? "继续游戏" : "开始游戏";
+            mHome.SetActive(true);
+            mOverlay.SetActive(false);
         }
 
         /// <summary>
@@ -147,6 +188,9 @@ namespace SeeWho.Client
             }
 
             if (mAnimating)
+            {
+                return;
+            }
 
             if (mOverlay != null && mOverlay.activeSelf)
             {
@@ -236,6 +280,7 @@ namespace SeeWho.Client
             scaler.matchWidthOrHeight = 0.5f;
 
             var root = (RectTransform)canvasGo.transform;
+            mRoot = root;
 
             var background = UiKit.CreateImage(root, "Background", mBgSprite, Color.white);
             UiKit.Stretch(background.rectTransform);
@@ -278,6 +323,47 @@ namespace SeeWho.Client
                 new Vector2(0f, 60f), new Vector2(900f, 80f));
 
             BuildOverlay(root);
+            BuildHome(root);
+        }
+
+        /// <summary>
+        /// 开始界面：游戏名压在木牌上，中间一个开始 / 继续按钮
+        /// </summary>
+        private void BuildHome(RectTransform root)
+        {
+            var home = UiKit.CreateNode(root, "Home");
+            UiKit.Stretch(home);
+            mHome = home.gameObject;
+
+            var dark = new Color(0.16f, 0.30f, 0.45f, 1f);
+
+            mHomeLevelText = UiKit.CreateText(home, "Level", "从第 1 关开始", 40, dark, TextAnchor.MiddleCenter, mFont);
+            UiKit.Place(mHomeLevelText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, 150f), new Vector2(700f, 70f));
+
+            var start = UiKit.CreateButton(home, "Start", "开始游戏", 52, ButtonColor, mRoundSprite, TextColor,
+                mFont, OnStartClicked);
+            UiKit.Place(start.transform as RectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -40f), new Vector2(480f, 150f));
+            mHomeButtonLabel = start.GetComponentInChildren<Text>();
+
+            var hint = UiKit.CreateText(home, "Hint", "点每列最前面的车，吸走同色的小人", 28, dark,
+                TextAnchor.MiddleCenter, mFont);
+            UiKit.Place(hint.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -180f), new Vector2(900f, 60f));
+        }
+
+        /// <summary>
+        /// 开始 / 继续
+        /// </summary>
+        private void OnStartClicked()
+        {
+            if (mHome != null)
+            {
+                mHome.SetActive(false);
+            }
+
+            StartGame(mStartLevel);
         }
 
         /// <summary>
@@ -345,6 +431,7 @@ namespace SeeWho.Client
             }
 
             mTitleText.text = "第 " + mNumber + " 关";
+            mTitleText.fontSize = 52;
             mRemainText.text = "剩余 " + mGame.Remaining() + " 个";
 
             RefreshBoard();
@@ -693,7 +780,15 @@ namespace SeeWho.Client
                 return;
             }
 
-            StartGame(mGame.IsWin ? mNumber + 1 : mNumber);
+            if (mGame.IsWin)
+            {
+                PlayerPrefs.SetInt("seewho.level", mNumber + 1);
+                PlayerPrefs.Save();
+                StartGame(mNumber + 1);
+                return;
+            }
+
+            StartGame(mNumber);
         }
 
         /// <summary>

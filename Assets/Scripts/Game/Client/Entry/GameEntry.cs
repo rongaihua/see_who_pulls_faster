@@ -36,14 +36,30 @@ namespace SeeWho.Client
         public GameView View { get; private set; }
 
         /// <summary>
-        /// 唤醒
+        /// 唤醒：先把界面建好，停在开始界面
         /// </summary>
         private void Awake()
         {
             sInstance = this;
             MyGame.G.Init();
             SetupCamera();
-            StartGame(1);
+            CreateView();
+            View.ShowHome();
+        }
+
+        /// <summary>
+        /// 建界面，重复调用直接返回
+        /// </summary>
+        private void CreateView()
+        {
+            if (View != null)
+            {
+                return;
+            }
+
+            var viewObject = new GameObject("GameView");
+            viewObject.transform.SetParent(transform, false);
+            View = viewObject.AddComponent<GameView>();
         }
 
         /// <summary>
@@ -52,13 +68,7 @@ namespace SeeWho.Client
         /// <param name="number">关号</param>
         public void StartGame(int number)
         {
-            if (View == null)
-            {
-                var viewObject = new GameObject("GameView");
-                viewObject.transform.SetParent(transform, false);
-                View = viewObject.AddComponent<GameView>();
-            }
-
+            CreateView();
             View.StartGame(number);
         }
 
