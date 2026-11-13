@@ -96,6 +96,11 @@ namespace SeeWho.Common.Balls
         public BusCard[] Deck = Array.Empty<BusCard>();
 
         /// <summary>
+        /// 后续从顶部掉下来补位的人，按顺序
+        /// </summary>
+        public int[] Refill = Array.Empty<int>();
+
+        /// <summary>
         /// 球格总数
         /// </summary>
         public int CellCount => Width * Height;
@@ -159,6 +164,18 @@ namespace SeeWho.Common.Balls
                 {
                     error = "Deck[" + i + "] 容量必须大于 0";
                     return false;
+                }
+            }
+
+            if (Refill != null)
+            {
+                for (var i = 0; i < Refill.Length; i++)
+                {
+                    if (Refill[i] < 0 || Refill[i] >= ColorCount)
+                    {
+                        error = "Refill[" + i + "] 颜色越界";
+                        return false;
+                    }
                 }
             }
 

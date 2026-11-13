@@ -48,6 +48,11 @@ namespace SeeWho.Common.Balls
         public int Cleared { get; private set; }
 
         /// <summary>
+        /// 掉落队列发到第几个了
+        /// </summary>
+        public int RefillIndex { get; private set; }
+
+        /// <summary>
         /// 造一局
         /// </summary>
         private BallGame()
@@ -97,7 +102,7 @@ namespace SeeWho.Common.Balls
         }
 
         /// <summary>
-        /// 盘上还剩几个球
+        /// 盘上还剩几个球（包括还没掉下来的）
         /// </summary>
         /// <returns>球数</returns>
         public int Remaining()
@@ -111,7 +116,8 @@ namespace SeeWho.Common.Balls
                 }
             }
 
-            return count;
+            var pending = Level.Refill != null ? Level.Refill.Length - RefillIndex : 0;
+            return count + Math.Max(0, pending);
         }
 
         /// <summary>
@@ -174,6 +180,7 @@ namespace SeeWho.Common.Balls
 
             var absorbed = Absorb(bus.Value);
             Drop();
+            PullRefill();
 
             Cleared += absorbed;
             Dispatched++;
@@ -261,6 +268,53 @@ namespace SeeWho.Common.Balls
                     write++;
                 }
             }
+        }
+
+        /// <summary>
+        /// 从掉落队列往每列顶部补人，补到没空位或者队列发完
+        /// </summary>
+        private void PullRefill()
+        {
+            if (Level.Refill == null || Level.Refill.Length == 0)
+            {
+                return;
+            }
+
+            var placed = true;
+            while (placed && RefillIndex < Level.Refill.Length)
+            {
+                placed = false;
+
+                for (var x = 0; x < Level.Width && RefillIndex < Level.Refill.Length; x++)
+                {
+                    var count = ColumnCount(x);
+                    if (count >= Level.Height)
+                    {
+                        continue;
+                    }
+
+                    Cells[Level.Index(x, count)] = Level.Refill[RefillIndex];
+                    RefillIndex++;
+                    placed = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 某列现在堆了几个球
+        /// </summary>
+        private int ColumnCount(int x)
+        {
+            var count = 0;
+            for (var y = 0; y < Level.Height; y++)
+            {
+                if (Cells[Level.Index(x, y)] >= 0)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         /// <summary>

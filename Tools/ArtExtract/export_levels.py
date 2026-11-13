@@ -136,15 +136,44 @@ def export_level(level_id, level, out_dir):
     if not deck:
         return None
 
-    width, height = board_size(len(colors))
+    # 车能装的总人数 = 初始盘面 + 后续从顶部掉下来的人
+    capacity = sum(b["capacity"] for b in deck)
+    initial_count = max(0, capacity - len(colors))
+
+    # 初始那批人按颜色比例从队列里抽，其余按原顺序排队掉下来
+    order = []
+    for c in colors:
+        c = mapping[c]
+        if c not in order:
+            order.append(c)
+
+    initial_counts = {}
+    left = initial_count
+    for c in order:
+        n = int(counts[c] * initial_count / len(colors))
+        initial_counts[c] = n
+        left -= n
+    for c in order:
+        if left <= 0:
+            break
+        initial_counts[c] += 1
+        left -= 1
+
+    refill = []
+    for c in order:
+        for _ in range(counts[c]):
+            refill.append(int(c))
+
+    width, height = board_size(max(initial_count, 60))
     rng = random.Random(level_id * 7919)
-    cells = fill_blobs(width, height, counts, rng)
+    cells = fill_blobs(width, height, initial_counts, rng)
 
     data = {
         "id": int(level_id),
         "width": width,
         "height": height,
         "cells": [int(v) for v in cells],
+        "refill": refill,
         "deck": deck,
     }
 

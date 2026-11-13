@@ -381,7 +381,7 @@ namespace SeeWho.Client
 
             var lanes = Mathf.Max(2, mLevel.Width / 8);
             var roadWidth = mCellSize * lanes + 18f;
-            const float roadHeight = 880f;
+            const float roadHeight = 300f;
 
             var edge = UiKit.CreateImage(mRoadRoot, "RoadEdge", mRoundSprite, roadEdge);
             UiKit.Place(edge.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
@@ -811,7 +811,7 @@ namespace SeeWho.Client
             {
                 busFrom,
                 new Vector2(0f, 465f),
-                new Vector2(0f, 1150f),
+                new Vector2(0f, 680f),
                 new Vector2(0f, 465f),
                 new Vector2(660f, 465f),
             };

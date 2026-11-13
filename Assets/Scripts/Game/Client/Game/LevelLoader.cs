@@ -37,6 +37,11 @@ namespace SeeWho.Client
         public int[] cells;
 
         /// <summary>
+        /// 后续从顶部掉下来补位的人
+        /// </summary>
+        public int[] refill;
+
+        /// <summary>
         /// 车队
         /// </summary>
         public DeckEntry[] deck;
@@ -152,17 +157,6 @@ namespace SeeWho.Client
                 return false;
             }
 
-            // 中间挖出一条车道，让道路从球坑中间穿上去
-            var lanes = Mathf.Max(2, data.width / 8);
-            var from = data.width / 2 - lanes / 2;
-            for (var x = from; x < from + lanes && x < data.width; x++)
-            {
-                for (var y = 0; y < data.height; y++)
-                {
-                    cells[y * data.width + x] = -1;
-                }
-            }
-
             var result = new BallLevel
             {
                 Id = "real-" + id,
@@ -172,6 +166,7 @@ namespace SeeWho.Client
                 Columns = 4,
                 Visible = 3,
                 Cells = cells,
+                Refill = data.refill ?? new int[0],
                 Deck = deck,
             };
 
